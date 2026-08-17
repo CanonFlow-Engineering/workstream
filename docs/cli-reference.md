@@ -20,6 +20,20 @@ the SHA-256 from an attached evidence object.
 Use `verify`, `work show`, `work queue`, `work blocked`, and `activity` to
 inspect local state. Use `export` and `import` to move a verified bundle.
 
+## Compass commands
+
+Use `compass evidence` to attach a human-provided local source to a project
+before creating a Compass draft. `compass create`, `compass approve`, and
+`compass supersede` manage human-owned Compass versions. Use `vision export`
+only after approval; `vision import` creates a new draft and attaches the
+imported projection as local source evidence.
+
+The `idea`, `assumption`, `tradeoff`, `decision`, and `milestone` commands use
+explicit JSON records for bounded structured direction data. They do not call a
+remote service or execute a command. `skeptic-agent:<id>` is accepted as a
+local actor label but is denied work claims, test recording, Judge recording,
+and gate decisions.
+
 ## Local browser command
 
 Use `serve [path] [--port 3210]` to start the M1 browser interface. It binds

@@ -618,3 +618,119 @@ test("installed tarball round-trips exports and rejects every tested portable-bu
     rmSync(installation.consumer, { force: true, recursive: true });
   }
 });
+
+test("installed tarball records local Compass direction and denies Skeptic approval", () => {
+  const installation = installCandidate();
+  try {
+    const root = join(installation.consumer, "compass-state");
+    const source = join(installation.consumer, "compass-source.md");
+    const input = join(installation.consumer, "compass.json");
+    const vision = join(installation.consumer, "VISION.md");
+    writeFileSync(source, "Human decision: keep the first slice local.\n");
+    cliJson(
+      installation,
+      ["init", root, "--actor", "human:owner"],
+      "initialize Compass state",
+    );
+    cliJson(
+      installation,
+      [
+        "project",
+        "create",
+        "compass",
+        "Compass project",
+        "Independent Compass verification",
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "create Compass project",
+    );
+    const evidence = cliJson(
+      installation,
+      [
+        "compass",
+        "evidence",
+        "compass",
+        "human-decision",
+        source,
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "attach Compass source evidence",
+    ).evidence.sha256;
+    writeFileSync(
+      input,
+      `${JSON.stringify({
+        title: "Local Compass",
+        owner: "owner",
+        principles: [
+          {
+            id: "local-evidence",
+            text: "Prefer local evidence.",
+            evidenceHash: evidence,
+          },
+        ],
+        nonGoals: [
+          {
+            id: "no-remote-actions",
+            text: "Do not create remote effects.",
+            evidenceHash: evidence,
+          },
+        ],
+      })}\n`,
+    );
+    cliJson(
+      installation,
+      [
+        "compass",
+        "create",
+        "compass",
+        "compass-v1",
+        input,
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "create Compass draft",
+    );
+    assertFailure(
+      cli(installation, [
+        "compass",
+        "approve",
+        "compass-v1",
+        "--root",
+        root,
+        "--actor",
+        "skeptic-agent:critic",
+      ]),
+      "deny Skeptic Compass approval",
+    );
+    cliJson(
+      installation,
+      [
+        "compass",
+        "approve",
+        "compass-v1",
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "approve Compass",
+    );
+    cliJson(
+      installation,
+      ["vision", "export", "compass", vision, "--root", root],
+      "export VISION.md projection",
+    );
+    assert.match(readFileSync(vision, "utf8"), /workstream-vision\/0\.1/);
+    assertSuccess(cli(installation, ["verify", root]), "verify Compass state");
+  } finally {
+    rmSync(installation.consumer, { force: true, recursive: true });
+  }
+});

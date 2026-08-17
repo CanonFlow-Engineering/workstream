@@ -17,3 +17,10 @@ For M1, the tester starts the installed local server on `127.0.0.1` and checks
 the health response and bundled browser assets. It must confirm that the
 response declares local-only, dry-run GitHub integration. It must not make a
 remote network request or use credentials.
+
+For M2A, the tester creates evidence-linked Compass drafts, checks named-owner
+approval and supersession, and verifies that a generated `VISION.md` imports as
+a new source-evidenced draft. It also tests idea expiry, assumption results,
+immutable decision supersession, milestone validation, and Skeptic denials for
+work claim, work evidence, test, Judge, and gate actions. Export/import must
+replay every Compass projection and reject any altered Compass evidence.

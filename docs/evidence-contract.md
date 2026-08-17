@@ -20,3 +20,8 @@ Import rejects an unsupported schema, a changed event digest, a changed event
 hash, a missing file, an unexpected evidence path, a symlink, duplicate
 addresses, or bytes that do not match their digest. These checks establish
 integrity of observed local data. They do not establish authorship or truth.
+
+M2A Compass statements must reference evidence already linked to their local
+project. A generated `VISION.md` shows those references but is only a readable
+projection. On import, Workstream stores the imported file as a new local
+evidence object and uses that address for the imported draft statements.

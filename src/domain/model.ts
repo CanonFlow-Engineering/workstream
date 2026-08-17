@@ -2,7 +2,8 @@ export type ActorKind =
   | "human"
   | "architect-agent"
   | "independent-tester"
-  | "llm-judge";
+  | "llm-judge"
+  | "skeptic-agent";
 
 export interface Actor {
   readonly id: string;
@@ -30,6 +31,154 @@ export interface Project {
   readonly name: string;
   readonly description: string;
   readonly createdAt: string;
+}
+
+export type CompassStatus = "draft" | "approved" | "superseded";
+
+export interface CompassStatement {
+  readonly id: string;
+  readonly text: string;
+  readonly evidenceHash: string;
+}
+
+export interface CompassVersion {
+  readonly id: string;
+  readonly projectId: string;
+  readonly owner: string;
+  readonly title: string;
+  readonly version: number;
+  readonly status: CompassStatus;
+  readonly createdAt: string;
+  readonly approvedAt: string | null;
+  readonly supersededBy: string | null;
+  readonly sourceVisionEvidenceHash: string | null;
+  readonly principles: readonly CompassStatement[];
+  readonly nonGoals: readonly CompassStatement[];
+}
+
+export type IdeaStatus = "inbox" | "shaped" | "rejected" | "deferred";
+
+export interface Idea {
+  readonly id: string;
+  readonly projectId: string;
+  readonly problem: string;
+  readonly affectedUser: string;
+  readonly expectedResult: string;
+  readonly evidenceHash: string;
+  readonly assumption: string;
+  readonly risk: string;
+  readonly costEstimate: string;
+  readonly rejectionReason: string;
+  readonly expiresAt: string;
+  readonly status: IdeaStatus;
+  readonly createdAt: string;
+}
+
+export type AssumptionConfidence = "low" | "medium" | "high";
+export type AssumptionResult = "open" | "validated" | "invalidated";
+
+export interface Assumption {
+  readonly id: string;
+  readonly projectId: string;
+  readonly statement: string;
+  readonly owner: string;
+  readonly confidence: AssumptionConfidence;
+  readonly testMethod: string;
+  readonly expiresAt: string;
+  readonly result: AssumptionResult;
+  readonly resultEvidenceHash: string | null;
+  readonly expired: boolean;
+  readonly createdAt: string;
+}
+
+export type TradeoffDecision = "accept" | "reject" | "defer" | null;
+
+export interface TradeoffCard {
+  readonly id: string;
+  readonly projectId: string;
+  readonly question: string;
+  readonly yesCase: string;
+  readonly noCase: string;
+  readonly evidenceHash: string;
+  readonly decision: TradeoffDecision;
+  readonly decisionReason: string | null;
+  readonly decidedAt: string | null;
+  readonly createdAt: string;
+}
+
+export type DecisionOutcome = "accept" | "reject" | "defer" | "stop";
+
+export interface Decision {
+  readonly id: string;
+  readonly projectId: string;
+  readonly subject: string;
+  readonly outcome: DecisionOutcome;
+  readonly reason: string;
+  readonly evidenceHash: string;
+  readonly supersedesDecisionId: string | null;
+  readonly supersededBy: string | null;
+  readonly createdAt: string;
+}
+
+export interface MilestoneContract {
+  readonly id: string;
+  readonly projectId: string;
+  readonly userProblem: string;
+  readonly smallestUsefulResult: string;
+  readonly nonGoals: readonly string[];
+  readonly acceptanceTests: readonly string[];
+  readonly evidenceRequired: readonly string[];
+  readonly risks: readonly string[];
+  readonly rollbackCondition: string;
+  readonly humanGate: string;
+  readonly createdAt: string;
+}
+
+export interface CompassSnapshot {
+  readonly compasses: readonly CompassVersion[];
+  readonly ideas: readonly Idea[];
+  readonly assumptions: readonly Assumption[];
+  readonly tradeoffs: readonly TradeoffCard[];
+  readonly decisions: readonly Decision[];
+  readonly milestones: readonly MilestoneContract[];
+}
+
+export interface CompassDraftInput {
+  readonly title: string;
+  readonly owner: string;
+  readonly principles: readonly CompassStatement[];
+  readonly nonGoals: readonly CompassStatement[];
+}
+
+export interface IdeaInput {
+  readonly problem: string;
+  readonly affectedUser: string;
+  readonly expectedResult: string;
+  readonly evidenceHash: string;
+  readonly assumption: string;
+  readonly risk: string;
+  readonly costEstimate: string;
+  readonly rejectionReason: string;
+  readonly expiresAt: string;
+}
+
+export interface AssumptionInput {
+  readonly statement: string;
+  readonly owner: string;
+  readonly confidence: AssumptionConfidence;
+  readonly testMethod: string;
+  readonly expiresAt: string;
+}
+
+export interface MilestoneContractInput {
+  readonly userProblem: string;
+  readonly smallestUsefulResult: string;
+  readonly nonGoals: readonly string[];
+  readonly acceptanceTests: readonly string[];
+  readonly evidenceRequired: readonly string[];
+  readonly risks: readonly string[];
+  readonly rollbackCondition: string;
+  readonly humanGate: string;
 }
 
 export interface WorkItem {

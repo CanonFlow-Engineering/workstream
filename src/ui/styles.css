@@ -264,6 +264,32 @@ main {
   margin-block: 1rem;
 }
 
+.compass-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-block: 1rem;
+}
+
+.compass-grid .card {
+  min-width: 0;
+}
+
+.compass-grid .list {
+  font-size: 0.9rem;
+}
+
+.vision-preview {
+  max-height: 22rem;
+  margin: 0;
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid #455861;
+  background: #101417;
+  color: #c5e8eb;
+  white-space: pre-wrap;
+}
+
 .list {
   display: grid;
   gap: 0.5rem;
@@ -294,7 +320,8 @@ footer {
 
   .form-grid,
   .action-grid,
-  .detail-grid {
+  .detail-grid,
+  .compass-grid {
     grid-template-columns: 1fr;
   }
 

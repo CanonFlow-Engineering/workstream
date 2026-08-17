@@ -12,8 +12,9 @@ Human creates mandate
 ```
 
 M0 keeps all state under `.workstream/`. M1 adds an optional loopback-only
-local browser server. It does not need an account, a network connection, or a
-hosted service. Its governing limit is:
+local browser server. M2A adds Compass: evidence-backed local product direction
+before a delivery milestone. It does not need an account, a network connection,
+or a hosted service. Its governing limit is:
 
 ```text
 authority ≤ evidence ≤ observed scope
@@ -70,7 +71,27 @@ reject, or stop. This is a trusted-local workflow control only. It does not
 authorize a merge, publication, release, deployment, GitHub write, or another
 external action. Browser activity remains local SQLite ledger activity.
 
-## M0 and M1 commands
+## M2A Compass
+
+Compass records testable product direction in the same local ledger. A Compass
+draft has a named human owner and evidence-linked principles and non-goals. Only
+that owner can approve it or supersede an approved version with a replacement
+draft. `VISION.md` is generated from an approved version; it is never the
+source of truth. Importing a generated `VISION.md` creates a new draft and
+stores the imported file as local source evidence.
+
+Compass also records an idea inbox, assumptions with an expiry and test method,
+trade-off cards, immutable decisions that can explicitly supersede earlier
+decisions, and milestone contracts. A `skeptic-agent:<id>` can record local
+direction work but cannot claim build work, record a test or Judge result, or
+make a gate decision. A decision is not evidence, and a green test is not user
+value.
+
+The loopback board has a Compass screen for local evidence, draft creation,
+imports, and projections. It does not add a remote action capability. See
+[Compass](docs/compass.md).
+
+## M0, M1, and M2A commands
 
 | Command           | Purpose                                                |
 | ----------------- | ------------------------------------------------------ |
@@ -93,13 +114,17 @@ external action. Browser activity remains local SQLite ledger activity.
 | `work blocked`    | Show blocked work.                                     |
 | `activity`        | Show append-only ledger activity.                      |
 
+The Compass, VISION, idea, assumption, trade-off, decision, and milestone
+commands are listed in `workstream --help`. JSON input keeps complex records
+explicit and replayable instead of inferring policy from free-form UI state.
+
 ## Guardrails
 
 Only `human:<id>` can create projects, issue mandates, or decide a gate. An
 Architect agent can claim only ready work. It cannot claim blocked work. An
 agent cannot self-approve a work item.
 
-M0 and M1 do not contain commands that merge, tag, publish, release, deploy,
+M0, M1, and M2A do not contain commands that merge, tag, publish, release, deploy,
 invite users, alter credentials, or change permissions. The local browser has
 no command-execution path. The exported `GitHubDryRun` interface has no
 network client and reports dry-run plans only.
@@ -138,4 +163,4 @@ remains a Node 24 package. The runners fail closed when their actual Node
 runtime differs from the published Assay toolchain. See the
 [Assay boundary](docs/assay-boundary.md).
 
-M0 and M1 are licensed under [Apache-2.0](LICENSE).
+M0, M1, and M2A are licensed under [Apache-2.0](LICENSE).

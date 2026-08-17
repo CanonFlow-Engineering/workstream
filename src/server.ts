@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { parseActor, WorkstreamStore } from "./adapters/workstream-store.js";
 import type {
   Actor,
+  CompassStatement,
   GateDecision,
   JudgeVerdict,
   TestVerdict,
@@ -31,6 +32,41 @@ const text = (body: JsonRecord, field: string): string => {
 
 const actor = (body: JsonRecord): Actor => parseActor(text(body, "actor"));
 
+const stringList = (body: JsonRecord, field: string): readonly string[] => {
+  const value = body[field];
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${field} must be a non-empty list of text.`);
+  }
+  const strings: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || item.length === 0) {
+      throw new Error(`${field} must be a non-empty list of text.`);
+    }
+    strings.push(item);
+  }
+  return strings;
+};
+
+const statements = (
+  body: JsonRecord,
+  field: string,
+): readonly CompassStatement[] => {
+  const value = body[field];
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${field} must be a non-empty statement list.`);
+  }
+  return value.map((entry): CompassStatement => {
+    if (!isRecord(entry)) {
+      throw new Error(`${field} contains an invalid statement.`);
+    }
+    return {
+      evidenceHash: text(entry, "evidenceHash"),
+      id: text(entry, "id"),
+      text: text(entry, "text"),
+    };
+  });
+};
+
 const isTestVerdict = (value: string): value is TestVerdict =>
   value === "PASS" || value === "FAIL" || value === "BLOCKED";
 
@@ -42,6 +78,50 @@ const isJudgeVerdict = (value: string): value is JudgeVerdict =>
 
 const isGateDecision = (value: string): value is GateDecision =>
   value === "accept" || value === "reject" || value === "stop";
+
+const ideaReviewStatus = (
+  value: string,
+): "shaped" | "rejected" | "deferred" => {
+  if (value === "shaped" || value === "rejected" || value === "deferred") {
+    return value;
+  }
+  throw new Error("Idea review status is invalid.");
+};
+
+const assumptionConfidence = (value: string): "low" | "medium" | "high" => {
+  if (value === "low" || value === "medium" || value === "high") {
+    return value;
+  }
+  throw new Error("Assumption confidence is invalid.");
+};
+
+const assumptionResult = (value: string): "validated" | "invalidated" => {
+  if (value === "validated" || value === "invalidated") {
+    return value;
+  }
+  throw new Error("Assumption result is invalid.");
+};
+
+const tradeoffDecision = (value: string): "accept" | "reject" | "defer" => {
+  if (value === "accept" || value === "reject" || value === "defer") {
+    return value;
+  }
+  throw new Error("Trade-off decision is invalid.");
+};
+
+const decisionOutcome = (
+  value: string,
+): "accept" | "reject" | "defer" | "stop" => {
+  if (
+    value === "accept" ||
+    value === "reject" ||
+    value === "defer" ||
+    value === "stop"
+  ) {
+    return value;
+  }
+  throw new Error("Decision outcome is invalid.");
+};
 
 const respondJson = (
   response: ServerResponse,
@@ -110,6 +190,7 @@ const snapshot = (store: WorkstreamStore): JsonRecord => ({
     .events()
     .some((event) => event.type === "workstream.initialized"),
   projects: store.projects(),
+  compass: store.compassSnapshot(),
   verification: store.verify(),
   work: store.workItems(),
 });
@@ -165,6 +246,60 @@ const decodedWorkPath = (pathname: string, suffix: string): string | null => {
   return decodeURIComponent(encoded);
 };
 
+const decodedCompassPath = (
+  pathname: string,
+  suffix: string,
+): string | null => {
+  const prefix = "/api/compass/";
+  if (!pathname.startsWith(prefix) || !pathname.endsWith(suffix)) {
+    return null;
+  }
+  const encoded = pathname.slice(
+    prefix.length,
+    pathname.length - suffix.length,
+  );
+  if (encoded.length === 0 || encoded.includes("/")) {
+    return null;
+  }
+  return decodeURIComponent(encoded);
+};
+
+const decodedProjectPath = (
+  pathname: string,
+  suffix: string,
+): string | null => {
+  const prefix = "/api/projects/";
+  if (!pathname.startsWith(prefix) || !pathname.endsWith(suffix)) {
+    return null;
+  }
+  const encoded = pathname.slice(
+    prefix.length,
+    pathname.length - suffix.length,
+  );
+  if (encoded.length === 0 || encoded.includes("/")) {
+    return null;
+  }
+  return decodeURIComponent(encoded);
+};
+
+const decodedItemPath = (
+  pathname: string,
+  prefix: string,
+  suffix: string,
+): string | null => {
+  if (!pathname.startsWith(prefix) || !pathname.endsWith(suffix)) {
+    return null;
+  }
+  const encoded = pathname.slice(
+    prefix.length,
+    pathname.length - suffix.length,
+  );
+  if (encoded.length === 0 || encoded.includes("/")) {
+    return null;
+  }
+  return decodeURIComponent(encoded);
+};
+
 const handleApi = async (
   root: string,
   request: IncomingMessage,
@@ -184,6 +319,17 @@ const handleApi = async (
   }
   if (pathname === "/api/state" && method === "GET") {
     respondJson(response, 200, withStore(root, snapshot));
+    return true;
+  }
+  const visionProjectId = decodedProjectPath(pathname, "/vision");
+  if (visionProjectId !== null && method === "GET") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        projection: store.vision(visionProjectId),
+      })),
+    );
     return true;
   }
   const detailId = decodedWorkPath(pathname, "");
@@ -221,6 +367,260 @@ const handleApi = async (
           text(body, "id"),
           text(body, "name"),
           text(body, "description"),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  const projectEvidenceId = decodedProjectPath(pathname, "/evidence");
+  if (projectEvidenceId !== null) {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        evidence: store.attachProjectEvidence(
+          actor(body),
+          projectEvidenceId,
+          text(body, "kind"),
+          new TextEncoder().encode(text(body, "content")),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/compass") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        compass: store.createCompass(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          {
+            nonGoals: statements(body, "nonGoals"),
+            owner: text(body, "owner"),
+            principles: statements(body, "principles"),
+            title: text(body, "title"),
+          },
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/compass/import") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        compass: store.importVisionContent(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          new TextEncoder().encode(text(body, "content")),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  const compassApproveId = decodedCompassPath(pathname, "/approve");
+  if (compassApproveId !== null) {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        compass: store.approveCompass(actor(body), compassApproveId),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  const compassSupersedeId = decodedCompassPath(pathname, "/supersede");
+  if (compassSupersedeId !== null) {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        compass: store.supersedeCompass(
+          actor(body),
+          compassSupersedeId,
+          text(body, "replacementCompassId"),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/ideas") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        idea: store.createIdea(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          {
+            affectedUser: text(body, "affectedUser"),
+            assumption: text(body, "assumption"),
+            costEstimate: text(body, "costEstimate"),
+            evidenceHash: text(body, "evidenceHash"),
+            expectedResult: text(body, "expectedResult"),
+            expiresAt: text(body, "expiresAt"),
+            problem: text(body, "problem"),
+            rejectionReason: text(body, "rejectionReason"),
+            risk: text(body, "risk"),
+          },
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  const ideaReviewId = decodedItemPath(pathname, "/api/ideas/", "/review");
+  if (ideaReviewId !== null) {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        idea: store.reviewIdea(
+          actor(body),
+          ideaReviewId,
+          ideaReviewStatus(text(body, "status")),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/assumptions") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        assumption: store.createAssumption(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          {
+            confidence: assumptionConfidence(text(body, "confidence")),
+            expiresAt: text(body, "expiresAt"),
+            owner: text(body, "owner"),
+            statement: text(body, "statement"),
+            testMethod: text(body, "testMethod"),
+          },
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  const assumptionResultId = decodedItemPath(
+    pathname,
+    "/api/assumptions/",
+    "/result",
+  );
+  if (assumptionResultId !== null) {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        assumption: store.recordAssumptionResult(
+          actor(body),
+          assumptionResultId,
+          assumptionResult(text(body, "result")),
+          text(body, "evidenceHash"),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/tradeoffs") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        tradeoff: store.createTradeoff(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          text(body, "question"),
+          text(body, "yesCase"),
+          text(body, "noCase"),
+          text(body, "evidenceHash"),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  const tradeoffDecisionId = decodedItemPath(
+    pathname,
+    "/api/tradeoffs/",
+    "/decision",
+  );
+  if (tradeoffDecisionId !== null) {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        tradeoff: store.decideTradeoff(
+          actor(body),
+          tradeoffDecisionId,
+          tradeoffDecision(text(body, "decision")),
+          text(body, "reason"),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/decisions") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        decision: store.recordDecision(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          text(body, "subject"),
+          decisionOutcome(text(body, "outcome")),
+          text(body, "reason"),
+          text(body, "evidenceHash"),
+          typeof body.supersedesDecisionId === "string"
+            ? body.supersedesDecisionId
+            : null,
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/milestones") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        milestone: store.createMilestone(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          {
+            acceptanceTests: stringList(body, "acceptanceTests"),
+            evidenceRequired: stringList(body, "evidenceRequired"),
+            humanGate: text(body, "humanGate"),
+            nonGoals: stringList(body, "nonGoals"),
+            risks: stringList(body, "risks"),
+            rollbackCondition: text(body, "rollbackCondition"),
+            smallestUsefulResult: text(body, "smallestUsefulResult"),
+            userProblem: text(body, "userProblem"),
+          },
         ),
         state: snapshot(store),
       })),

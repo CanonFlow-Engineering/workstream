@@ -14,12 +14,15 @@
     "LTS": "Long-term support.",
     "M0": "Milestone zero.",
     "M1": "Milestone one.",
+    "M2A": "Milestone two, Compass local-first slice.",
     "NDJSON": "Newline-delimited JSON.",
     "PASS": "A recorded passing test outcome.",
     "README": "Repository readme document.",
     "SHA-256": "Secure Hash Algorithm 256-bit digest.",
     "LICENSE": "Repository license document.",
     "SQLITE": "Structured Query Language embedded database engine.",
-    "UTF-8": "Unicode Transformation Format 8-bit encoding."
+    "UTF-8": "Unicode Transformation Format 8-bit encoding.",
+    "UI": "User interface.",
+    "VISION": "Generated Compass vision projection."
   }
 }

@@ -1,4 +1,4 @@
-const screens = ["project", "board", "evidence", "approval"];
+const screens = ["project", "compass", "board", "evidence", "approval"];
 const statuses = [
   "ready",
   "claimed",
@@ -10,7 +10,18 @@ const statuses = [
   "blocked",
 ];
 
-let state = { projects: [], work: [] };
+let state = {
+  compass: {
+    assumptions: [],
+    compasses: [],
+    decisions: [],
+    ideas: [],
+    milestones: [],
+    tradeoffs: [],
+  },
+  projects: [],
+  work: [],
+};
 let selectedWorkId = "";
 
 const $ = (selector) => document.querySelector(selector);
@@ -79,6 +90,96 @@ const renderProjects = () => {
     select.append(option);
   }
   select.value = prior || state.projects[0]?.id || "";
+  for (const compassSelect of document.querySelectorAll(".project-choice")) {
+    const selected = compassSelect.value;
+    clear(compassSelect);
+    for (const project of state.projects) {
+      const option = element("option", project.name);
+      option.value = project.id;
+      compassSelect.append(option);
+    }
+    compassSelect.value = selected || state.projects[0]?.id || "";
+  }
+};
+
+const renderCompass = () => {
+  const compass = state.compass;
+  const renderItems = (selector, items, formatter) => {
+    const container = $(selector);
+    clear(container);
+    if (items.length === 0) {
+      addEmpty(container, "No local records yet.");
+      return;
+    }
+    container.append(list(items, (item) => element("li", formatter(item))));
+  };
+  const compassList = $("#compass-list");
+  clear(compassList);
+  if (compass.compasses.length === 0) {
+    addEmpty(compassList, "No local records yet.");
+  } else {
+    const items = element("ul", "", "list");
+    for (const item of compass.compasses) {
+      const entry = element(
+        "li",
+        `v${item.version} ${item.status} · ${item.title} · owner: ${item.owner}`,
+      );
+      if (item.status === "draft") {
+        const approve = element("button", "Approve as owner");
+        approve.type = "button";
+        approve.addEventListener("click", () =>
+          mutate(`/api/compass/${encodeURIComponent(item.id)}/approve`, {
+            actor: `human:${item.owner}`,
+          }),
+        );
+        entry.append(" ", approve);
+      }
+      items.append(entry);
+    }
+    compassList.append(items);
+  }
+  renderItems(
+    "#idea-list",
+    compass.ideas,
+    (item) => `${item.status}: ${item.problem} · expires ${item.expiresAt}`,
+  );
+  renderItems(
+    "#assumption-list",
+    compass.assumptions,
+    (item) =>
+      `${item.result}${item.expired ? " (expired)" : ""}: ${item.statement}`,
+  );
+  renderItems(
+    "#tradeoff-list",
+    compass.tradeoffs,
+    (item) => `${item.decision || "open"}: ${item.question}`,
+  );
+  renderItems(
+    "#decision-list",
+    compass.decisions,
+    (item) =>
+      `${item.outcome}: ${item.subject}${item.supersededBy ? " (superseded)" : ""}`,
+  );
+  renderItems(
+    "#milestone-list",
+    compass.milestones,
+    (item) => `${item.id}: ${item.smallestUsefulResult}`,
+  );
+};
+
+const renderVision = async () => {
+  const projectId = state.projects[0]?.id;
+  const preview = $("#vision-preview");
+  preview.textContent = "";
+  if (!projectId) return;
+  try {
+    const result = await request(
+      `/api/projects/${encodeURIComponent(projectId)}/vision`,
+    );
+    preview.textContent = result.projection;
+  } catch {
+    preview.textContent = "No approved Compass projection for this project.";
+  }
 };
 
 const selectWork = (id) => {
@@ -229,9 +330,11 @@ const renderDetail = async () => {
 
 const render = () => {
   renderProjects();
+  renderCompass();
   renderBoard();
   renderQueue();
   renderWorkPicker();
+  void renderVision();
 };
 
 const refresh = async () => {
@@ -276,6 +379,46 @@ $("#project-form").addEventListener("submit", (event) => {
   event.preventDefault();
   mutate("/api/projects", formData(event.currentTarget));
   event.currentTarget.reset();
+});
+$("#project-evidence-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = formData(event.currentTarget);
+  mutate(`/api/projects/${encodeURIComponent(data.projectId)}/evidence`, data);
+  event.currentTarget.reset();
+});
+$("#compass-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = formData(event.currentTarget);
+  try {
+    const input = JSON.parse(data.input);
+    delete data.input;
+    mutate("/api/compass", { ...data, ...input });
+  } catch {
+    notice("Compass JSON is invalid.", "error");
+  }
+});
+$("#vision-import-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  mutate("/api/compass/import", formData(event.currentTarget));
+});
+$("#compass-record-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = formData(event.currentTarget);
+  try {
+    const input = JSON.parse(data.input);
+    const route = {
+      assumption: "/api/assumptions",
+      decision: "/api/decisions",
+      idea: "/api/ideas",
+      milestone: "/api/milestones",
+      tradeoff: "/api/tradeoffs",
+    }[data.kind];
+    delete data.input;
+    delete data.kind;
+    mutate(route, { ...input, ...data });
+  } catch {
+    notice("Direction record JSON is invalid.", "error");
+  }
 });
 $("#work-form").addEventListener("submit", (event) => {
   event.preventDefault();
