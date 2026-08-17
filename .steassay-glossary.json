@@ -14,6 +14,7 @@
     "README": "Repository readme document.",
     "SHA-256": "Secure Hash Algorithm 256-bit digest.",
     "LICENSE": "Repository license document.",
-    "SQLITE": "Structured Query Language embedded database engine."
+    "SQLITE": "Structured Query Language embedded database engine.",
+    "UTF-8": "Unicode Transformation Format 8-bit encoding."
   }
 }

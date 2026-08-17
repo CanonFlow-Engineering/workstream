@@ -564,6 +564,7 @@ export class WorkstreamStore {
     const eventLines = this.events()
       .map((event) => canonicalJson(event))
       .join("\n");
+    const eventText = eventLines.length === 0 ? "" : `${eventLines}\n`;
     const evidence = this.evidenceReferences();
     for (const reference of evidence) {
       writeFileSync(
@@ -571,14 +572,11 @@ export class WorkstreamStore {
         readFileSync(evidencePath(this.root, reference.sha256)),
       );
     }
-    writeFileSync(
-      join(target, "events.ndjson"),
-      eventLines.length === 0 ? "" : `${eventLines}\n`,
-    );
+    writeFileSync(join(target, "events.ndjson"), eventText);
     const manifest: ExportManifest = {
       schemaVersion: "workstream-bundle/0.1",
       createdAt: this.clock(),
-      eventsSha256: sha256(eventLines),
+      eventsSha256: sha256(eventText),
       evidence,
     };
     writeFileSync(join(target, "manifest.json"), canonicalJson(manifest));
@@ -593,11 +591,16 @@ export class WorkstreamStore {
     this.assertBundlePaths(source);
     const manifest = this.readManifest(source);
     const eventText = readFileSync(join(source, "events.ndjson"), "utf8");
-    const eventLines = eventText === "" ? [] : eventText.trimEnd().split("\n");
-    const canonicalEventText = eventLines.join("\n");
-    if (sha256(canonicalEventText) !== manifest.eventsSha256) {
+    if (sha256(eventText) !== manifest.eventsSha256) {
       throw new Error("Bundle events do not match the manifest digest.");
     }
+    if (eventText !== "" && !eventText.endsWith("\n")) {
+      throw new Error("Bundle events must use newline-delimited records.");
+    }
+    const eventLines =
+      eventText === ""
+        ? []
+        : eventText.slice(0, Math.max(0, eventText.length - 1)).split("\n");
     const events = eventLines.map((line, index) =>
       this.parseBundleEvent(line, index + 1),
     );

@@ -12,7 +12,8 @@ characters as its previous hash.
 An export bundle contains:
 
 - `manifest.json` with schema, event digest, and sorted evidence references.
-- `events.ndjson` with canonical one-event-per-line records.
+- `events.ndjson` with canonical one-event-per-line records. `eventsSha256`
+  is the SHA-256 of its exact UTF-8 file bytes, including its final newline.
 - `evidence/sha256/<digest>` files for every manifest reference.
 
 Import rejects an unsupported schema, a changed event digest, a changed event

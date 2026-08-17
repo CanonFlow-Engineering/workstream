@@ -228,8 +228,14 @@ test("exports independently reproducible event hashes", () => {
   withTemporaryDirectory((root) => {
     const started = startClaimedWork(root);
     const bundle = join(root, "bundle");
-    started.store.exportBundle(bundle);
+    const manifest = started.store.exportBundle(bundle);
     started.store.close();
+    assert.equal(
+      manifest.eventsSha256,
+      createHash("sha256")
+        .update(readFileSync(join(bundle, "events.ndjson")))
+        .digest("hex"),
+    );
     const lines = readFileSync(join(bundle, "events.ndjson"), "utf8")
       .trim()
       .split("\n");
