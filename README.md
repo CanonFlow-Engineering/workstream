@@ -107,8 +107,9 @@ npm test
 npm run build
 ```
 
-The Assay gates are separate evidence checks. TypeScriptAssay currently ships
-for Node 20, so it runs under its own pinned supported toolchain. Workstream
-itself remains a Node 24 package.
+The Assay gates use a separate pinned Node 20.20.2 runner. Workstream itself
+remains a Node 24 package. The runners fail closed when their actual Node
+runtime differs from the published Assay toolchain. See the
+[Assay boundary](docs/assay-boundary.md).
 
 M0 is licensed under [Apache-2.0](LICENSE).
