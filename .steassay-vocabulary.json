@@ -1,0 +1,21 @@
+{
+  "bannedTerms": [],
+  "deprecatedTerms": [],
+  "imperativeVerbs": [
+    "Accept",
+    "Attach",
+    "Create",
+    "Do",
+    "Keep",
+    "List",
+    "Preserve",
+    "Record",
+    "Review",
+    "Run",
+    "State",
+    "Store",
+    "Treat",
+    "Use"
+  ],
+  "terminology": []
+}

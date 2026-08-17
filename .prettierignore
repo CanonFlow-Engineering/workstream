@@ -4,5 +4,3 @@ dist/
 .ste-assay/
 artifacts/
 *.tgz
-coverage/
-.DS_Store

@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "profile": "new",
+  "includeGlobs": [
+    "README.md",
+    "AGENTS.md",
+    "src/cli-help.md",
+    "docs/**/*.md",
+    "templates/**/*.md"
+  ],
+  "excludedGlobs": ["node_modules/**", "dist/**", "verification/**"],
+  "glossaryPath": ".steassay-glossary.json",
+  "vocabularyPath": ".steassay-vocabulary.json",
+  "requiredCommands": [],
+  "rules": {
+    "STE-S01": {
+      "maxWords": 80
+    },
+    "STE-S09": {
+      "markers": ["Requirement:"],
+      "modals": ["must"]
+    }
+  },
+  "baseline": []
+}

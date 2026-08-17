@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "ts-assay-policy/0.1",
+  "profile": "new",
+  "domainGlobs": ["src/domain/**/*.ts"],
+  "boundaryGlobs": ["src/adapters/**/*.ts", "src/cli.ts", "src/index.ts"],
+  "excludedGlobs": [
+    "dist/**",
+    "node_modules/**",
+    "tests/**",
+    "verification/**"
+  ],
+  "requiredCommands": [
+    "npm run format:check",
+    "npm run lint",
+    "npm run typecheck",
+    "npm test",
+    "npm run build"
+  ],
+  "escapeHatches": {
+    "assertions": "forbid",
+    "nonNullAssertions": "forbid",
+    "directives": "forbid"
+  },
+  "discriminantFields": ["kind", "type"],
+  "transportTypeNames": []
+}

@@ -1,0 +1,72 @@
+{
+  "name": "@canonflow/workstream",
+  "version": "0.0.0",
+  "description": "A local-first evidence ledger for controlled human-and-agent work loops.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "workstream": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "AGENTS.md"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build.mjs",
+    "test": "node_modules/node/bin/node --import tsx --test tests/**/*.test.ts",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
+    "assay:typescript": "\"$npm_node_execpath\" scripts/run-typescript-assay.mjs",
+    "assay:ste": "\"$npm_node_execpath\" scripts/run-ste-assay.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CanonFlow-Engineering/workstream.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CanonFlow-Engineering/workstream/issues"
+  },
+  "homepage": "https://github.com/CanonFlow-Engineering/workstream#readme",
+  "keywords": [
+    "evidence",
+    "ledger",
+    "local-first",
+    "workflow",
+    "governance"
+  ],
+  "devDependencies": {
+    "@eslint/js": "9.37.0",
+    "@types/node": "24.10.0",
+    "eslint": "9.37.0",
+    "node": "24.19.0",
+    "prettier": "3.6.2",
+    "ste-assay": "0.2.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "typescript-assay": "0.1.1",
+    "typescript-eslint": "8.46.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.19.0"
+    }
+  }
+}
