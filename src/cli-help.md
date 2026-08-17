@@ -3,6 +3,7 @@ workstream — local-first evidence ledger
 Usage:
 
 - Use `workstream init [path] --actor human:<id>`.
+- Use `workstream serve [path] [--port 3210]` to open the loopback-only local browser interface.
 - Use `workstream project create <project-id> <name> [description] --actor human:<id>`.
 - Use `workstream work create <project-id> <work-id> <title> --actor human:<id>`.
 - Use `workstream mandate issue <work-id> <mandate-file> --actor human:<id>`.
@@ -20,4 +21,4 @@ Usage:
 - Use `workstream work blocked [--root path]`.
 - Use `workstream activity [work-id] [--root path]`.
 
-The CLI writes only local SQLite state and content-addressed evidence. GitHub output is dry-run only in M0.
+The CLI writes only local SQLite state and content-addressed evidence. The browser server binds to `127.0.0.1` only. Actor IDs are ledger labels, not authentication. The human gate is a trusted-local workflow control and does not authorize external actions. GitHub output is dry-run only; M1 adds no two-way synchronization.

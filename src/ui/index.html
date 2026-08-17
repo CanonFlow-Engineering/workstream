@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Local Workstream project and evidence board."
+    />
+    <title>Workstream local board</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div>
+        <p class="eyebrow">@canonflow/workstream · M1</p>
+        <h1>Local work board</h1>
+        <p>
+          A local browser view of the SQLite ledger. It does not synchronize
+          with GitHub or perform external writes.
+        </p>
+      </div>
+      <div class="server-status" aria-label="Local server status">
+        <strong>Loopback server</strong>
+        <span
+          >Evidence stays in this project’s
+          <code>.workstream</code> directory.</span
+        >
+        <span>Actor IDs are ledger labels, not browser authentication.</span>
+      </div>
+    </header>
+
+    <noscript>
+      <p class="notice error">
+        This local board needs JavaScript to read the local ledger.
+      </p>
+    </noscript>
+    <p id="notice" class="notice" role="status" aria-live="polite">
+      Loading the local ledger…
+    </p>
+
+    <nav class="screen-nav" aria-label="Workstream screens">
+      <button type="button" data-screen="project" aria-current="page">
+        Project
+      </button>
+      <button type="button" data-screen="board">Work board</button>
+      <button type="button" data-screen="evidence">Evidence and handoff</button>
+      <button type="button" data-screen="approval">Human approval queue</button>
+      <button id="refresh" class="secondary" type="button">
+        Refresh local data
+      </button>
+    </nav>
+
+    <main>
+      <section
+        id="project-screen"
+        class="screen"
+        aria-labelledby="project-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Human-owned setup</p>
+            <h2 id="project-heading">Project screen</h2>
+          </div>
+          <button id="initialize" type="button">Initialize local ledger</button>
+        </div>
+        <p class="boundary">
+          Initialization and project creation require a human ledger actor.
+          Actor IDs are not authentication. Use this screen only on a trusted
+          local machine. It creates only local SQLite records.
+        </p>
+        <form id="project-form" class="form-grid" novalidate>
+          <label>
+            Human ledger actor
+            <input name="actor" value="human:owner" required />
+          </label>
+          <label>
+            Project ID
+            <input
+              name="id"
+              placeholder="documentation"
+              required
+              pattern="[a-z0-9-]+"
+            />
+          </label>
+          <label>
+            Project name
+            <input name="name" placeholder="Documentation work" required />
+          </label>
+          <label class="full-width">
+            Description
+            <textarea
+              name="description"
+              rows="2"
+              placeholder="A local, evidence-carrying project record."
+              required
+            ></textarea>
+          </label>
+          <button type="submit">Create local project</button>
+        </form>
+        <div id="project-list" class="card-list" aria-live="polite"></div>
+      </section>
+
+      <section
+        id="board-screen"
+        class="screen"
+        hidden
+        aria-labelledby="board-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Observed ledger state</p>
+            <h2 id="board-heading">Work board</h2>
+          </div>
+        </div>
+        <form id="work-form" class="form-grid" novalidate>
+          <label>
+            Human ledger actor
+            <input name="actor" value="human:owner" required />
+          </label>
+          <label>
+            Project
+            <select id="work-project" name="projectId" required></select>
+          </label>
+          <label>
+            Work ID
+            <input
+              name="id"
+              placeholder="work-1"
+              required
+              pattern="[a-z0-9-]+"
+            />
+          </label>
+          <label>
+            Work title
+            <input
+              name="title"
+              placeholder="Implement a bounded slice"
+              required
+            />
+          </label>
+          <button type="submit">Create ready work</button>
+        </form>
+        <p class="boundary">
+          An architect agent can claim only ready work. The board displays
+          ledger projections; it does not create GitHub issues, pull requests,
+          or deployments.
+        </p>
+        <div id="work-board" class="work-board" aria-live="polite"></div>
+      </section>
+
+      <section
+        id="evidence-screen"
+        class="screen"
+        hidden
+        aria-labelledby="evidence-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Content-addressed records</p>
+            <h2 id="evidence-heading">Evidence and handoff</h2>
+          </div>
+        </div>
+        <label class="work-picker">
+          Work item
+          <select id="detail-work"></select>
+        </label>
+        <div id="work-detail" class="detail-grid" aria-live="polite"></div>
+        <div class="action-grid">
+          <form id="claim-form" class="card" novalidate>
+            <h3>Architect claim</h3>
+            <label
+              >Architect actor
+              <input name="actor" value="architect-agent:builder" required
+            /></label>
+            <button type="submit">Claim selected work</button>
+          </form>
+          <form id="evidence-form" class="card" novalidate>
+            <h3>Attach local evidence</h3>
+            <label
+              >Actor
+              <input name="actor" value="architect-agent:builder" required
+            /></label>
+            <label
+              >Kind <input name="kind" value="implementation" required
+            /></label>
+            <label
+              >Text evidence
+              <textarea name="content" rows="4" required></textarea>
+            </label>
+            <button type="submit">Store evidence</button>
+          </form>
+          <form id="handoff-form" class="card" novalidate>
+            <h3>Create handoff</h3>
+            <label
+              >Sender actor
+              <input name="actor" value="architect-agent:builder" required
+            /></label>
+            <label
+              >Recipient
+              <input
+                name="recipient"
+                value="independent-tester:tester"
+                required
+            /></label>
+            <label
+              >Summary <textarea name="summary" rows="3" required></textarea>
+            </label>
+            <button type="submit">Record handoff</button>
+          </form>
+          <form id="test-form" class="card" novalidate>
+            <h3>Record independent test</h3>
+            <label
+              >Tester actor
+              <input name="actor" value="independent-tester:tester" required
+            /></label>
+            <label
+              >Verdict
+              <select name="verdict">
+                <option>PASS</option>
+                <option>FAIL</option>
+                <option>BLOCKED</option>
+              </select></label
+            >
+            <label
+              >Evidence SHA-256
+              <input name="evidenceHash" required pattern="[a-f0-9]{64}"
+            /></label>
+            <button type="submit">Record test</button>
+          </form>
+          <form id="judge-form" class="card" novalidate>
+            <h3>Record Judge result</h3>
+            <label
+              >Judge actor <input name="actor" value="llm-judge:judge" required
+            /></label>
+            <label
+              >Verdict
+              <select name="verdict">
+                <option>Pass</option>
+                <option>Fail</option>
+                <option>Inconclusive</option>
+                <option>ToolFailure</option>
+              </select></label
+            >
+            <label
+              >Evidence SHA-256
+              <input name="evidenceHash" required pattern="[a-f0-9]{64}"
+            /></label>
+            <button type="submit">Record Judge result</button>
+          </form>
+        </div>
+      </section>
+
+      <section
+        id="approval-screen"
+        class="screen"
+        hidden
+        aria-labelledby="approval-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Required human gate</p>
+            <h2 id="approval-heading">Human approval queue</h2>
+          </div>
+        </div>
+        <p class="boundary">
+          Only a human ledger actor can accept, reject, or stop a work item.
+          Actor IDs are not authentication. This trusted-local workflow control
+          does not authorize a merge, publication, release, deployment, GitHub
+          write, or other external action.
+        </p>
+        <div id="approval-queue" class="card-list" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Local-first M1. GitHub integration remains dry-run only. The browser
+        never receives a credential, actor IDs are not authentication, and the
+        server binds to <code>127.0.0.1</code>.
+      </p>
+    </footer>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

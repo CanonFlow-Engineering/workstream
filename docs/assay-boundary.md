@@ -1,6 +1,6 @@
 # Assay boundary
 
-M0 pins `typescript-assay` 0.1.1 and `ste-assay` 0.2.0 in `package-lock.json`.
+M0 and M1 pin `typescript-assay` 0.1.1 and `ste-assay` 0.2.0 in `package-lock.json`.
 The lockfile records their registry integrity values. The CI workflow and Judge
 receipt record the exact installed versions and artifact hashes.
 
@@ -11,5 +11,6 @@ that condition is not true. CI uses the same exact runner for this separate
 gate.
 
 STEAssay is Markdown only. It observes the README, agent rules, templates, and
-M0 documentation. It cannot scan TypeScript CLI source. The CLI reference
-documents that surface. The Judge separately runs installed CLI smoke tests.
+M0 and M1 documentation. It cannot scan TypeScript CLI source. The CLI
+reference documents that surface. The Judge separately runs installed CLI
+smoke tests.

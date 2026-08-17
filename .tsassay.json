@@ -2,7 +2,12 @@
   "schemaVersion": "ts-assay-policy/0.1",
   "profile": "new",
   "domainGlobs": ["src/domain/**/*.ts"],
-  "boundaryGlobs": ["src/adapters/**/*.ts", "src/cli.ts", "src/index.ts"],
+  "boundaryGlobs": [
+    "src/adapters/**/*.ts",
+    "src/cli.ts",
+    "src/index.ts",
+    "src/server.ts"
+  ],
   "excludedGlobs": [
     "dist/**",
     "node_modules/**",

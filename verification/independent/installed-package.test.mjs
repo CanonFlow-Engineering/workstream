@@ -329,8 +329,10 @@ test("installed package exposes only documented public exports and works offline
       "GitHubDryRun",
       "WorkstreamStore",
       "canonicalJson",
+      "createLocalServer",
       "parseActor",
       "sha256",
+      "startLocalServer",
     ]);
     assert.match(
       assertSuccess(cli(installation, ["--help"]), "offline CLI help").stdout,
