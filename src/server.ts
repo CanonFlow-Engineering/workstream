@@ -34,13 +34,17 @@ const actor = (body: JsonRecord): Actor => parseActor(text(body, "actor"));
 
 const stringList = (body: JsonRecord, field: string): readonly string[] => {
   const value = body[field];
-  if (
-    !Array.isArray(value) ||
-    value.some((item) => typeof item !== "string" || item.length === 0)
-  ) {
+  if (!Array.isArray(value) || value.length === 0) {
     throw new Error(`${field} must be a non-empty list of text.`);
   }
-  return value as readonly string[];
+  const strings: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || item.length === 0) {
+      throw new Error(`${field} must be a non-empty list of text.`);
+    }
+    strings.push(item);
+  }
+  return strings;
 };
 
 const statements = (
@@ -74,6 +78,50 @@ const isJudgeVerdict = (value: string): value is JudgeVerdict =>
 
 const isGateDecision = (value: string): value is GateDecision =>
   value === "accept" || value === "reject" || value === "stop";
+
+const ideaReviewStatus = (
+  value: string,
+): "shaped" | "rejected" | "deferred" => {
+  if (value === "shaped" || value === "rejected" || value === "deferred") {
+    return value;
+  }
+  throw new Error("Idea review status is invalid.");
+};
+
+const assumptionConfidence = (value: string): "low" | "medium" | "high" => {
+  if (value === "low" || value === "medium" || value === "high") {
+    return value;
+  }
+  throw new Error("Assumption confidence is invalid.");
+};
+
+const assumptionResult = (value: string): "validated" | "invalidated" => {
+  if (value === "validated" || value === "invalidated") {
+    return value;
+  }
+  throw new Error("Assumption result is invalid.");
+};
+
+const tradeoffDecision = (value: string): "accept" | "reject" | "defer" => {
+  if (value === "accept" || value === "reject" || value === "defer") {
+    return value;
+  }
+  throw new Error("Trade-off decision is invalid.");
+};
+
+const decisionOutcome = (
+  value: string,
+): "accept" | "reject" | "defer" | "stop" => {
+  if (
+    value === "accept" ||
+    value === "reject" ||
+    value === "defer" ||
+    value === "stop"
+  ) {
+    return value;
+  }
+  throw new Error("Decision outcome is invalid.");
+};
 
 const respondJson = (
   response: ServerResponse,
@@ -442,7 +490,7 @@ const handleApi = async (
         idea: store.reviewIdea(
           actor(body),
           ideaReviewId,
-          text(body, "status") as "shaped" | "rejected" | "deferred",
+          ideaReviewStatus(text(body, "status")),
         ),
         state: snapshot(store),
       })),
@@ -459,7 +507,7 @@ const handleApi = async (
           text(body, "id"),
           text(body, "projectId"),
           {
-            confidence: text(body, "confidence") as "low" | "medium" | "high",
+            confidence: assumptionConfidence(text(body, "confidence")),
             expiresAt: text(body, "expiresAt"),
             owner: text(body, "owner"),
             statement: text(body, "statement"),
@@ -484,7 +532,7 @@ const handleApi = async (
         assumption: store.recordAssumptionResult(
           actor(body),
           assumptionResultId,
-          text(body, "result") as "validated" | "invalidated",
+          assumptionResult(text(body, "result")),
           text(body, "evidenceHash"),
         ),
         state: snapshot(store),
@@ -524,7 +572,7 @@ const handleApi = async (
         tradeoff: store.decideTradeoff(
           actor(body),
           tradeoffDecisionId,
-          text(body, "decision") as "accept" | "reject" | "defer",
+          tradeoffDecision(text(body, "decision")),
           text(body, "reason"),
         ),
         state: snapshot(store),
@@ -542,7 +590,7 @@ const handleApi = async (
           text(body, "id"),
           text(body, "projectId"),
           text(body, "subject"),
-          text(body, "outcome") as "accept" | "reject" | "defer" | "stop",
+          decisionOutcome(text(body, "outcome")),
           text(body, "reason"),
           text(body, "evidenceHash"),
           typeof body.supersedesDecisionId === "string"

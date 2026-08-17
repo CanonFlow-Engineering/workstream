@@ -850,6 +850,22 @@ test("uses equivalent Compass permissions through the loopback browser API", asy
     });
     assert.equal(denied.status, 400);
     assert.match(await denied.text(), /requires a human actor/);
+    const malformedConfidence = await fetch(`${base}/api/assumptions`, {
+      body: JSON.stringify({
+        actor: "human:owner",
+        confidence: "certain",
+        expiresAt: "2026-12-31T00:00:00.000Z",
+        id: "assumption-invalid",
+        owner: "owner",
+        projectId: "compass",
+        statement: "A malformed confidence must not be accepted.",
+        testMethod: "Check the local API.",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    assert.equal(malformedConfidence.status, 400);
+    assert.match(await malformedConfidence.text(), /confidence is invalid/);
     await post(base, "/api/compass/compass-v1/approve", {
       actor: "human:owner",
     });

@@ -164,16 +164,22 @@ const decisionOutcomes: readonly DecisionOutcome[] = [
   "defer",
   "stop",
 ];
+const tradeoffDecisions: readonly Exclude<TradeoffDecision, null>[] = [
+  "accept",
+  "reject",
+  "defer",
+];
 
 const requiredEnum = <T extends string>(
   value: string,
   values: readonly T[],
   label: string,
 ): T => {
-  if (!values.some((candidate) => candidate === value)) {
+  const matched = values.find((candidate) => candidate === value);
+  if (matched === undefined) {
     throw new Error(`${label} is unknown.`);
   }
-  return value as T;
+  return matched;
 };
 
 const statementsFromRows = (
@@ -1164,7 +1170,7 @@ export class WorkstreamStore {
           ? null
           : requiredEnum(
               stringValue(row, "decision"),
-              ["accept", "reject", "defer"] as const,
+              tradeoffDecisions,
               "Trade-off decision",
             ),
       decisionReason: nullableStringValue(row, "decision_reason"),
@@ -1726,13 +1732,14 @@ export class WorkstreamStore {
     );
     this.requireText(input.rollbackCondition, "Milestone rollback condition");
     this.requireText(input.humanGate, "Milestone human gate");
-    for (const [label, values] of [
+    const lists = new Map<string, readonly string[]>([
       ["Milestone non-goals", input.nonGoals],
       ["Milestone acceptance tests", input.acceptanceTests],
       ["Milestone evidence required", input.evidenceRequired],
       ["Milestone risks", input.risks],
-    ] as const) {
-      if (values.length === 0) {
+    ]);
+    for (const [label, values] of lists) {
+      if (values === undefined || values.length === 0) {
         throw new Error(`${label} must not be empty.`);
       }
       for (const value of values) {
@@ -2205,10 +2212,14 @@ export class WorkstreamStore {
     if (!Array.isArray(value) || value.length === 0) {
       throw new Error(`Event payload ${key} must be a non-empty string list.`);
     }
-    if (value.some((item) => typeof item !== "string" || item.length === 0)) {
-      throw new Error(`Event payload ${key} contains invalid text.`);
+    const strings: string[] = [];
+    for (const item of value) {
+      if (typeof item !== "string" || item.length === 0) {
+        throw new Error(`Event payload ${key} contains invalid text.`);
+      }
+      strings.push(item);
     }
-    return value as readonly string[];
+    return strings;
   }
 
   private requireStatementPayload(
