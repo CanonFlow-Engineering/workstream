@@ -14,4 +14,5 @@ if (compiled.status !== 0) {
 } else {
   mkdirSync("dist", { recursive: true });
   cpSync("src/cli-help.md", "dist/cli-help.md");
+  cpSync("src/ui", "dist/ui", { recursive: true });
 }

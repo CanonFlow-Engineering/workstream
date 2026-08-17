@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { canonicalJson } from "./adapters/canonical.js";
 import { parseActor, WorkstreamStore } from "./adapters/workstream-store.js";
+import { startLocalServer } from "./server.js";
 import type {
   Actor,
   GateDecision,
@@ -14,6 +15,7 @@ const help = readFileSync(new URL("./cli-help.md", import.meta.url), "utf8");
 
 interface ParsedArguments {
   readonly positional: readonly string[];
+  readonly port: number;
   readonly root: string;
   readonly actor: Actor | null;
 }
@@ -35,11 +37,12 @@ const optionValue = (
 
 const parseArguments = (arguments_: readonly string[]): ParsedArguments => {
   const root = optionValue(arguments_, "--root") ?? ".";
+  const portValue = optionValue(arguments_, "--port");
   const actorValue = optionValue(arguments_, "--actor");
   const positional: string[] = [];
   for (let index = 0; index < arguments_.length; index += 1) {
     const item = arguments_[index];
-    if (item === "--root" || item === "--actor") {
+    if (item === "--root" || item === "--actor" || item === "--port") {
       index += 1;
       continue;
     }
@@ -49,6 +52,7 @@ const parseArguments = (arguments_: readonly string[]): ParsedArguments => {
   }
   return {
     positional,
+    port: portValue === null ? 3210 : Number(portValue),
     root: resolve(root),
     actor: actorValue === null ? null : parseActor(actorValue),
   };
@@ -114,6 +118,18 @@ const main = (): number => {
       event: store.initialize(requireActor(parsed.actor)),
       root,
     }));
+    return 0;
+  }
+  if (command === "serve") {
+    const root = subcommand === undefined ? parsed.root : resolve(subcommand);
+    startLocalServer(root, parsed.port, (address) =>
+      emit({
+        address,
+        githubIntegration: "dry-run-only",
+        mode: "local-browser",
+        root,
+      }),
+    );
     return 0;
   }
   if (command === "project" && subcommand === "create") {

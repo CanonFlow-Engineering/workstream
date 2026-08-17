@@ -16,6 +16,16 @@ export default tseslint.config(
     },
   },
   {
+    files: ["src/ui/**/*.js"],
+    languageOptions: {
+      globals: {
+        document: "readonly",
+        fetch: "readonly",
+        FormData: "readonly",
+      },
+    },
+  },
+  {
     rules: {
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-explicit-any": "error",

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { WorkstreamStore, type Actor } from "../src/index.js";
+import { createLocalServer } from "../src/server.js";
 
 const human: Actor = { kind: "human", id: "owner" };
 const architect: Actor = { kind: "architect-agent", id: "builder" };
@@ -55,6 +56,62 @@ const independentlyCanonicalJson = (value: unknown): string => {
 
 const independentlySha256 = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
+
+const jsonObject = async (
+  response: Response,
+): Promise<Record<string, unknown>> => {
+  const value: unknown = await response.json();
+  assert.equal(isRecord(value), true);
+  if (!isRecord(value)) {
+    throw new Error("Expected a JSON object.");
+  }
+  return value;
+};
+
+const requiredObject = (
+  record: Record<string, unknown>,
+  field: string,
+): Record<string, unknown> => {
+  const value = record[field];
+  assert.equal(isRecord(value), true);
+  if (!isRecord(value)) {
+    throw new Error(`${field} must be an object.`);
+  }
+  return value;
+};
+
+const requiredText = (
+  record: Record<string, unknown>,
+  field: string,
+): string => {
+  const value = record[field];
+  assert.equal(typeof value, "string");
+  if (typeof value !== "string") {
+    throw new Error(`${field} must be a string.`);
+  }
+  return value;
+};
+
+const closeServer = (
+  server: ReturnType<typeof createLocalServer>,
+): Promise<void> =>
+  new Promise((resolve, reject) => {
+    server.close((error) => (error === undefined ? resolve() : reject(error)));
+  });
+
+const post = async (
+  base: string,
+  path: string,
+  body: Record<string, string>,
+): Promise<Record<string, unknown>> => {
+  const response = await fetch(`${base}${path}`, {
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  });
+  assert.equal(response.status, 200);
+  return jsonObject(response);
+};
 
 const startClaimedWork = (
   root: string,
@@ -259,6 +316,110 @@ test("exports independently reproducible event hashes", () => {
       );
     }
   });
+});
+
+test("serves a loopback-only local browser work loop without GitHub synchronization", async () => {
+  const root = mkdtempSync(join(tmpdir(), "workstream-server-test-"));
+  const server = createLocalServer(root);
+  try {
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    const address = server.address();
+    assert.notEqual(address, null);
+    assert.equal(typeof address, "object");
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected a loopback server address.");
+    }
+    const port = address.port;
+    const base = `http://127.0.0.1:${port}`;
+    const health = await fetch(`${base}/api/health`);
+    assert.equal(health.status, 200);
+    const healthBody = await jsonObject(health);
+    assert.equal(healthBody.localOnly, true);
+    assert.equal(healthBody.githubIntegration, "dry-run-only");
+    const page = await fetch(base);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /Human approval queue/);
+
+    await post(base, "/api/initialize", { actor: "human:owner" });
+    await post(base, "/api/projects", {
+      actor: "human:owner",
+      description: "A local browser project.",
+      id: "local-ui",
+      name: "Local UI",
+    });
+    await post(base, "/api/work", {
+      actor: "human:owner",
+      id: "work-1",
+      projectId: "local-ui",
+      title: "Show the human gate",
+    });
+    await post(base, "/api/work/work-1/mandate", {
+      actor: "human:owner",
+      content: "# Mandate\n\nUse the local browser only.\n",
+    });
+    await post(base, "/api/work/work-1/claim", {
+      actor: "architect-agent:builder",
+    });
+    await post(base, "/api/work/work-1/handoff", {
+      actor: "architect-agent:builder",
+      recipient: "independent-tester:tester",
+      summary: "The local implementation is ready for test.",
+    });
+    const testAttachment = await post(base, "/api/work/work-1/evidence", {
+      actor: "independent-tester:tester",
+      content: "Independent local test result.",
+      kind: "test",
+    });
+    const testHash = requiredText(
+      requiredObject(testAttachment, "evidence"),
+      "sha256",
+    );
+    await post(base, "/api/work/work-1/test", {
+      actor: "independent-tester:tester",
+      evidenceHash: testHash,
+      verdict: "PASS",
+    });
+    const judgeAttachment = await post(base, "/api/work/work-1/evidence", {
+      actor: "llm-judge:judge",
+      content: "Judge reads immutable local evidence.",
+      kind: "judge",
+    });
+    const judgeHash = requiredText(
+      requiredObject(judgeAttachment, "evidence"),
+      "sha256",
+    );
+    await post(base, "/api/work/work-1/judge", {
+      actor: "llm-judge:judge",
+      evidenceHash: judgeHash,
+      verdict: "Pass",
+    });
+    const detail = await fetch(`${base}/api/work/work-1`);
+    assert.equal(detail.status, 200);
+    const detailBody = await jsonObject(detail);
+    assert.equal(requiredObject(detailBody, "work").status, "awaiting-gate");
+    const evidence = detailBody.evidence;
+    assert.equal(Array.isArray(evidence), true);
+    if (!Array.isArray(evidence)) {
+      throw new Error("Expected work evidence.");
+    }
+    assert.equal(evidence.length, 3);
+    const state = await fetch(`${base}/api/state`);
+    const stateBody = await jsonObject(state);
+    assert.equal(stateBody.initialized, true);
+    await post(base, "/api/work/work-1/gate", {
+      actor: "human:owner",
+      decision: "accept",
+    });
+    const finalDetail = await jsonObject(
+      await fetch(`${base}/api/work/work-1`),
+    );
+    assert.equal(requiredObject(finalDetail, "work").status, "accepted");
+  } finally {
+    await closeServer(server);
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("uses the Markdown help source and reports an invalid ledger with status 1", () => {

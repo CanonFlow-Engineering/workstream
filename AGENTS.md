@@ -14,8 +14,9 @@ mandate and an assigned work item.
 ## Prohibited agent actions
 
 An agent must not self-approve work. An agent must not claim blocked work.
-M0 has no agent path for merge, tag, publication, release, deployment, user
-invitation, credential change, or permission change.
+M0 and M1 have no agent path for merge, tag, publication, release, deployment,
+user invitation, credential change, or permission change. M1's browser server
+binds to loopback only and has no GitHub synchronization path.
 
 Do not treat a ledger event as proof beyond its attached evidence. Preserve
 the local evidence bytes and use `workstream verify` before handoff.

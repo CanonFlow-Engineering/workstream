@@ -25,6 +25,7 @@ import type {
   Project,
   TestVerdict,
   VerificationReport,
+  WorkEvidenceReference,
   WorkItem,
   WorkStatus,
 } from "../domain/model.js";
@@ -460,6 +461,15 @@ export class WorkstreamStore {
     return row === undefined ? null : projectFromRow(row);
   }
 
+  projects(): readonly Project[] {
+    return this.database
+      .prepare(
+        "SELECT id, name, description, created_at FROM projects ORDER BY created_at, id",
+      )
+      .all()
+      .map(projectFromRow);
+  }
+
   work(id: string): WorkItem | null {
     const row = this.database
       .prepare(
@@ -467,6 +477,33 @@ export class WorkstreamStore {
       )
       .get(id);
     return row === undefined ? null : workFromRow(row);
+  }
+
+  workItems(): readonly WorkItem[] {
+    return this.database
+      .prepare(
+        "SELECT id, project_id, title, status, claimant, mandate_evidence_hash, created_at, updated_at FROM work_items ORDER BY updated_at DESC, id",
+      )
+      .all()
+      .map(workFromRow);
+  }
+
+  workEvidence(workId: string): readonly WorkEvidenceReference[] {
+    this.requireWork(workId);
+    return this.database
+      .prepare(
+        "SELECT evidence.sha256 AS sha256, evidence.bytes AS bytes, 'mandate' AS kind FROM work_items INNER JOIN evidence ON evidence.sha256 = work_items.mandate_evidence_hash WHERE work_items.id = ? UNION ALL SELECT evidence.sha256 AS sha256, evidence.bytes AS bytes, work_evidence.kind AS kind FROM work_evidence INNER JOIN evidence ON evidence.sha256 = work_evidence.evidence_hash WHERE work_evidence.work_id = ? ORDER BY kind, sha256",
+      )
+      .all(workId, workId)
+      .map((row) => {
+        const hash = stringValue(row, "sha256");
+        return {
+          sha256: hash,
+          bytes: numberValue(row, "bytes"),
+          path: `evidence/sha256/${hash}`,
+          kind: stringValue(row, "kind"),
+        };
+      });
   }
 
   queue(): readonly WorkItem[] {

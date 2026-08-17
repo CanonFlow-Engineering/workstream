@@ -11,8 +11,9 @@ Human creates mandate
 → Human accepts, rejects, or stops
 ```
 
-M0 keeps all state under `.workstream/`. It does not need an account, a
-network connection, a server, or a hosted service. Its governing limit is:
+M0 keeps all state under `.workstream/`. M1 adds an optional loopback-only
+local browser server. It does not need an account, a network connection, or a
+hosted service. Its governing limit is:
 
 ```text
 authority ≤ evidence ≤ observed scope
@@ -49,11 +50,30 @@ workstream verify .
 Attach the Tester and Judge receipts before recording their results. The CLI
 prints the evidence SHA-256 when an attachment succeeds.
 
-## M0 commands
+## M1 local browser
+
+Start a browser view for the current local project:
+
+```text
+workstream serve . --port 3210
+```
+
+The server binds to `127.0.0.1` only. It provides a Project screen, Work
+board, Evidence and handoff screen, and Human approval queue. The browser
+calls only this local server and stores no credentials. It cannot synchronize
+with GitHub, merge, publish, release, deploy, or make a human gate decision
+automatically.
+
+The Human approval queue shows only work that has a passing independent test
+record and a Judge `Pass` record. A human actor must still select accept,
+reject, or stop. Browser activity remains local SQLite ledger activity.
+
+## M0 and M1 commands
 
 | Command           | Purpose                                                |
 | ----------------- | ------------------------------------------------------ |
 | `init`            | Create local SQLite state and an initial ledger event. |
+| `serve`           | Start the loopback-only local browser interface.       |
 | `project create`  | Create a human-owned project record.                   |
 | `work create`     | Create a ready work item.                              |
 | `mandate issue`   | Store a human-issued mandate as evidence.              |
@@ -77,9 +97,10 @@ Only `human:<id>` can create projects, issue mandates, or decide a gate. An
 Architect agent can claim only ready work. It cannot claim blocked work. An
 agent cannot self-approve a work item.
 
-M0 does not contain commands that merge, tag, publish, release, deploy,
-invite users, alter credentials, or change permissions. The exported
-`GitHubDryRun` interface has no network client and reports dry-run plans only.
+M0 and M1 do not contain commands that merge, tag, publish, release, deploy,
+invite users, alter credentials, or change permissions. The local browser has
+no command-execution path. The exported `GitHubDryRun` interface has no
+network client and reports dry-run plans only.
 
 ## Evidence and portability
 
@@ -115,4 +136,4 @@ remains a Node 24 package. The runners fail closed when their actual Node
 runtime differs from the published Assay toolchain. See the
 [Assay boundary](docs/assay-boundary.md).
 
-M0 is licensed under [Apache-2.0](LICENSE).
+M0 and M1 are licensed under [Apache-2.0](LICENSE).

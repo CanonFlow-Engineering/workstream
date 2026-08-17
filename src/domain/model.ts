@@ -49,6 +49,10 @@ export interface EvidenceReference {
   readonly path: string;
 }
 
+export interface WorkEvidenceReference extends EvidenceReference {
+  readonly kind: string;
+}
+
 export interface LedgerEvent {
   readonly sequence: number;
   readonly actor: Actor;
