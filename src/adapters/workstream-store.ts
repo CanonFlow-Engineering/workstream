@@ -130,7 +130,7 @@ const eventFromRow = (row: SqlRow): LedgerEvent => ({
 const eventMaterial = (
   event: Omit<LedgerEvent, "sha256">,
 ): Record<string, unknown> => ({
-  actor: actorText(event.actor),
+  actor: event.actor,
   payload: event.payload,
   previousSha256: event.previousSha256,
   sequence: event.sequence,

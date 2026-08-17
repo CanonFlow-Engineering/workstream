@@ -4,9 +4,10 @@ Evidence is immutable byte content addressed by SHA-256. A reference contains
 the digest, byte length, and a fixed relative path. It does not contain an
 untrusted filesystem path.
 
-An event hash is the SHA-256 of canonical JSON with these fields: sequence,
-actor, timestamp, event type, payload, and previous hash. The first event uses
-64 zero characters as its previous hash.
+An event hash is the SHA-256 of canonical JSON with these exported fields:
+sequence, actor, timestamp, type, payload, and previous SHA-256. `actor` is
+the exported object with `kind` and `id` fields. The first event uses 64 zero
+characters as its previous hash.
 
 An export bundle contains:
 

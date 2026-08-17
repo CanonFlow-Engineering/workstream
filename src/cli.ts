@@ -10,29 +10,7 @@ import type {
   TestVerdict,
 } from "./domain/model.js";
 
-const help = `workstream — local-first evidence ledger
-
-Usage:
-  workstream init [path] --actor human:<id>
-  workstream project create <project-id> <name> [description] --actor human:<id>
-  workstream work create <project-id> <work-id> <title> --actor human:<id>
-  workstream mandate issue <work-id> <mandate-file> --actor human:<id>
-  workstream work claim <work-id> --actor architect-agent:<id>
-  workstream evidence attach <work-id> <kind> <file> --actor <kind>:<id>
-  workstream handoff create <work-id> <recipient-kind:id> <summary> --actor <kind>:<id>
-  workstream test record <work-id> <PASS|FAIL|BLOCKED> <evidence-sha256> --actor independent-tester:<id>
-  workstream judge record <work-id> <Pass|Fail|Inconclusive|ToolFailure> <evidence-sha256> --actor llm-judge:<id>
-  workstream gate decide <work-id> <accept|reject|stop> --actor human:<id>
-  workstream export <bundle-directory> [--root path]
-  workstream import <bundle-directory> [target-path]
-  workstream verify [path]
-  workstream work show <work-id> [--root path]
-  workstream work queue [--root path]
-  workstream work blocked [--root path]
-  workstream activity [work-id] [--root path]
-
-The CLI writes only local SQLite state and content-addressed evidence. GitHub output is dry-run only in M0.
-`;
+const help = readFileSync(new URL("./cli-help.md", import.meta.url), "utf8");
 
 interface ParsedArguments {
   readonly positional: readonly string[];
@@ -282,8 +260,14 @@ const main = (): number => {
   }
   if (command === "verify") {
     const root = subcommand === undefined ? parsed.root : resolve(subcommand);
-    withStore(root, (store) => ({ verification: store.verify() }));
-    return 0;
+    const store = new WorkstreamStore(root);
+    try {
+      const verification = store.verify();
+      emit({ verification });
+      return verification.valid ? 0 : 1;
+    } finally {
+      store.close();
+    }
   }
   if (command === "work" && subcommand === "show") {
     withStore(parsed.root, (store) => {

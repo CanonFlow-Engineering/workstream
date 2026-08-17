@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -23,6 +25,36 @@ const fixedClock = (): (() => string) => {
   let index = 0;
   return () => `2026-08-17T00:00:${String(index++).padStart(2, "0")}.000Z`;
 };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const independentlyCanonicalJson = (value: unknown): string => {
+  if (
+    value === null ||
+    typeof value === "boolean" ||
+    typeof value === "number" ||
+    typeof value === "string"
+  ) {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(independentlyCanonicalJson).join(",")}]`;
+  }
+  if (isRecord(value)) {
+    return `{${Object.keys(value)
+      .sort((left, right) => left.localeCompare(right))
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${independentlyCanonicalJson(value[key])}`,
+      )
+      .join(",")}}`;
+  }
+  throw new Error("Expected a JSON value.");
+};
+
+const independentlySha256 = (value: string): string =>
+  createHash("sha256").update(value).digest("hex");
 
 const startClaimedWork = (
   root: string,
@@ -189,6 +221,70 @@ test("exports and imports an equivalent portable evidence bundle", () => {
     assert.equal(imported.work(started.workId)?.status, "claimed");
     assert.equal(imported.verify().valid, true);
     imported.close();
+  });
+});
+
+test("exports independently reproducible event hashes", () => {
+  withTemporaryDirectory((root) => {
+    const started = startClaimedWork(root);
+    const bundle = join(root, "bundle");
+    started.store.exportBundle(bundle);
+    started.store.close();
+    const lines = readFileSync(join(bundle, "events.ndjson"), "utf8")
+      .trim()
+      .split("\n");
+    for (const line of lines) {
+      const event: unknown = JSON.parse(line);
+      assert.equal(isRecord(event), true);
+      if (!isRecord(event)) {
+        throw new Error("Exported event must be an object.");
+      }
+      const material = {
+        actor: event.actor,
+        payload: event.payload,
+        previousSha256: event.previousSha256,
+        sequence: event.sequence,
+        timestamp: event.timestamp,
+        type: event.type,
+      };
+      assert.equal(
+        event.sha256,
+        independentlySha256(independentlyCanonicalJson(material)),
+      );
+    }
+  });
+});
+
+test("uses the Markdown help source and reports an invalid ledger with status 1", () => {
+  withTemporaryDirectory((root) => {
+    const help = spawnSync(
+      "node_modules/node/bin/node",
+      ["--import", "tsx", "src/cli.ts", "--help"],
+      { encoding: "utf8" },
+    );
+    assert.equal(help.status, 0);
+    assert.equal(help.stdout, readFileSync("src/cli-help.md", "utf8"));
+
+    const started = startClaimedWork(root);
+    const evidence = started.store.attachEvidence(
+      architect,
+      started.workId,
+      "implementation",
+      new TextEncoder().encode("evidence"),
+    );
+    writeFileSync(
+      join(root, ".workstream", "evidence", "sha256", evidence.sha256),
+      "changed",
+    );
+    started.store.close();
+
+    const verification = spawnSync(
+      "node_modules/node/bin/node",
+      ["--import", "tsx", "src/cli.ts", "verify", root],
+      { encoding: "utf8" },
+    );
+    assert.equal(verification.status, 1);
+    assert.match(verification.stdout, /"valid":false/);
   });
 });
 

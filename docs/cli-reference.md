@@ -1,7 +1,8 @@
 # CLI reference
 
-`workstream --help` lists the M0 command surface. The commands use local
-files only and write canonical JSON to standard output.
+`src/cli-help.md` is the canonical Markdown help source. The CLI reads that
+file at runtime. The build copies it into the packed `dist/` directory. The
+help-drift regression test requires `workstream --help` to match it exactly.
 
 ## State commands
 

@@ -4,6 +4,7 @@
   "includeGlobs": [
     "README.md",
     "AGENTS.md",
+    "src/cli-help.md",
     "docs/**/*.md",
     "templates/**/*.md"
   ],

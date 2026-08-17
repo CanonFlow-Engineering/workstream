@@ -92,6 +92,9 @@ the chain.
 `import` rejects malformed schemas, changed events, unsafe evidence paths,
 duplicate addresses, missing artifacts, and invalid hashes.
 
+`workstream verify` exits with status 0 only when the event chain and evidence
+bytes are valid. It exits with status 1 after it reports an invalid ledger.
+
 See [architecture](docs/architecture.md), the [evidence contract](docs/evidence-contract.md),
 the [Independent Tester plan](docs/independent-test-plan.md), and the
 [Judge protocol](docs/judge-protocol.md).

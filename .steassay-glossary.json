@@ -1,13 +1,16 @@
 {
   "abbreviations": {
     "API": "Application programming interface.",
+    "BLOCKED": "A recorded blocked test outcome.",
     "CI": "Continuous integration.",
     "CLI": "Command-line interface.",
+    "FAIL": "A recorded failed test outcome.",
     "JSON": "JavaScript Object Notation.",
     "LLM": "Large language model.",
     "LTS": "Long-term support.",
     "M0": "Milestone zero.",
     "NDJSON": "Newline-delimited JSON.",
+    "PASS": "A recorded passing test outcome.",
     "README": "Repository readme document.",
     "SHA-256": "Secure Hash Algorithm 256-bit digest.",
     "LICENSE": "Repository license document.",
