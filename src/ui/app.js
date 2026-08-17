@@ -1,4 +1,13 @@
-const screens = ["project", "compass", "board", "evidence", "approval"];
+const screens = [
+  "project",
+  "compass",
+  "shape",
+  "launch",
+  "outcome",
+  "board",
+  "evidence",
+  "approval",
+];
 const statuses = [
   "ready",
   "claimed",
@@ -16,7 +25,10 @@ let state = {
     compasses: [],
     decisions: [],
     ideas: [],
+    launchReadiness: [],
     milestones: [],
+    outcomeReviews: [],
+    shapeBriefs: [],
     tradeoffs: [],
   },
   projects: [],
@@ -102,6 +114,44 @@ const renderProjects = () => {
   }
 };
 
+const renderNextHumanDecision = () => {
+  const container = $("#next-human-decision");
+  clear(container);
+  container.append(element("h3", "Next human decision"));
+  const compassDraft = state.compass.compasses.find(
+    (item) => item.status === "draft",
+  );
+  const shapeDraft = state.compass.shapeBriefs.find(
+    (item) => item.status === "draft",
+  );
+  const readinessDraft = state.compass.launchReadiness.find(
+    (item) => item.status === "draft",
+  );
+  const pending = compassDraft || shapeDraft || readinessDraft;
+  if (!pending) {
+    container.append(
+      element(
+        "p",
+        "No local Compass, Shape, or launch-readiness decision is pending.",
+      ),
+    );
+    return;
+  }
+  const label = compassDraft
+    ? `Approve Compass ${compassDraft.id} as ${compassDraft.owner}.`
+    : shapeDraft
+      ? `Approve Shape brief ${shapeDraft.id} as ${shapeDraft.owner}.`
+      : `Authorize launch-readiness record ${readinessDraft.id} as ${readinessDraft.owner}.`;
+  container.append(element("p", label));
+  container.append(
+    element(
+      "p",
+      "This trusted-local decision records workflow state only. It cannot cause an external action.",
+      "boundary",
+    ),
+  );
+};
+
 const renderCompass = () => {
   const compass = state.compass;
   const renderItems = (selector, items, formatter) => {
@@ -164,6 +214,74 @@ const renderCompass = () => {
     "#milestone-list",
     compass.milestones,
     (item) => `${item.id}: ${item.smallestUsefulResult}`,
+  );
+};
+
+const renderM2B = () => {
+  const renderRecords = (selector, records, renderRecord, action) => {
+    const container = $(selector);
+    clear(container);
+    if (records.length === 0) {
+      addEmpty(container, "No local records yet.");
+      return;
+    }
+    for (const record of records) {
+      const card = element("article", "", "card");
+      card.append(element("h3", record.id));
+      card.append(element("p", renderRecord(record)));
+      if (action) action(card, record);
+      container.append(card);
+    }
+  };
+  renderRecords(
+    "#shape-list",
+    state.compass.shapeBriefs,
+    (item) =>
+      `${item.status} · ${item.targetUser} · success: ${item.successCriteria.join("; ")}`,
+    (card, item) => {
+      if (item.status === "draft") {
+        const approve = element("button", "Approve as owner");
+        approve.type = "button";
+        approve.addEventListener("click", () =>
+          mutate(`/api/shapes/${encodeURIComponent(item.id)}/approve`, {
+            actor: `human:${item.owner}`,
+          }),
+        );
+        card.append(approve);
+      }
+    },
+  );
+  renderRecords(
+    "#launch-list",
+    state.compass.launchReadiness,
+    (item) =>
+      `${item.status} · support: ${item.supportOwner} · ${item.changeNote}`,
+    (card, item) => {
+      if (item.status === "draft") {
+        const authorize = element("button", "Record human authorization");
+        authorize.type = "button";
+        authorize.addEventListener("click", () =>
+          mutate(
+            `/api/launch-readiness/${encodeURIComponent(item.id)}/authorize`,
+            { actor: `human:${item.owner}` },
+          ),
+        );
+        card.append(authorize);
+      }
+      card.append(
+        element(
+          "p",
+          "Authorization is local evidence only; no launch is executed.",
+          "boundary",
+        ),
+      );
+    },
+  );
+  renderRecords(
+    "#outcome-list",
+    state.compass.outcomeReviews,
+    (item) =>
+      `${item.decision || "pending"} · expected: ${item.expectedMeasure.join("; ")} · observed: ${item.observedResult || "not recorded"}`,
   );
 };
 
@@ -331,6 +449,8 @@ const renderDetail = async () => {
 const render = () => {
   renderProjects();
   renderCompass();
+  renderM2B();
+  renderNextHumanDecision();
   renderBoard();
   renderQueue();
   renderWorkPicker();
@@ -418,6 +538,46 @@ $("#compass-record-form").addEventListener("submit", (event) => {
     mutate(route, { ...input, ...data });
   } catch {
     notice("Direction record JSON is invalid.", "error");
+  }
+});
+$("#shape-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = formData(event.currentTarget);
+  try {
+    const input = JSON.parse(data.input);
+    delete data.input;
+    mutate("/api/shapes", { ...data, ...input });
+  } catch {
+    notice("Shape brief JSON is invalid.", "error");
+  }
+});
+$("#launch-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = formData(event.currentTarget);
+  try {
+    const input = JSON.parse(data.input);
+    delete data.input;
+    mutate("/api/launch-readiness", { ...data, ...input });
+  } catch {
+    notice("Launch-readiness JSON is invalid.", "error");
+  }
+});
+$("#outcome-create-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  mutate("/api/outcome-reviews", formData(event.currentTarget));
+});
+$("#outcome-record-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = formData(event.currentTarget);
+  try {
+    const input = JSON.parse(data.input);
+    delete data.input;
+    mutate(`/api/outcome-reviews/${encodeURIComponent(data.id)}/record`, {
+      ...data,
+      ...input,
+    });
+  } catch {
+    notice("Outcome review JSON is invalid.", "error");
   }
 });
 $("#work-form").addEventListener("submit", (event) => {

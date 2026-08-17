@@ -13,7 +13,10 @@ import type {
   DecisionOutcome,
   GateDecision,
   JudgeVerdict,
+  LaunchReadinessInput,
   MilestoneContractInput,
+  OutcomeDecision,
+  ShapeBriefInput,
   TestVerdict,
 } from "./domain/model.js";
 
@@ -178,6 +181,43 @@ const milestoneInput = (
   rollbackCondition: inputText(input, "rollbackCondition"),
   smallestUsefulResult: inputText(input, "smallestUsefulResult"),
   userProblem: inputText(input, "userProblem"),
+});
+
+const shapeBriefInput = (input: Record<string, unknown>): ShapeBriefInput => ({
+  assumptionIds: inputStringList(input, "assumptionIds"),
+  desiredOutcome: inputText(input, "desiredOutcome"),
+  effortLimit: inputText(input, "effortLimit"),
+  evidenceHashes: inputStringList(input, "evidenceHashes"),
+  ideaId: inputText(input, "ideaId"),
+  nonGoals: inputStringList(input, "nonGoals"),
+  openQuestions: inputStringList(input, "openQuestions"),
+  owner: inputText(input, "owner"),
+  rabbitHoles: inputStringList(input, "rabbitHoles"),
+  risks: inputStringList(input, "risks"),
+  scopeExpansionPaths: inputStringList(input, "scopeExpansionPaths"),
+  solutionOutline: inputText(input, "solutionOutline"),
+  successCriteria: inputStringList(input, "successCriteria"),
+  targetUser: inputText(input, "targetUser"),
+  userJourney: inputText(input, "userJourney"),
+  userProblem: inputText(input, "userProblem"),
+});
+
+const launchReadinessInput = (
+  input: Record<string, unknown>,
+): LaunchReadinessInput => ({
+  candidateEvidenceHash: inputText(input, "candidateEvidenceHash"),
+  changeNote: inputText(input, "changeNote"),
+  knownLimits: inputStringList(input, "knownLimits"),
+  owner: inputText(input, "owner"),
+  privacySecurityDeclaration: inputText(input, "privacySecurityDeclaration"),
+  releaseChecklist: inputStringList(input, "releaseChecklist"),
+  rollbackProcedure: inputText(input, "rollbackProcedure"),
+  shapeBriefId: inputText(input, "shapeBriefId"),
+  supportOwner: inputText(input, "supportOwner"),
+  verificationEvidenceHashes: inputStringList(
+    input,
+    "verificationEvidenceHashes",
+  ),
 });
 
 const testVerdicts = ["PASS", "FAIL", "BLOCKED"];
@@ -450,6 +490,86 @@ const main = (): number => {
         ),
       ),
     }));
+    return 0;
+  }
+  if (command === "shape" && subcommand === "create") {
+    withStore(parsed.root, (store) => ({
+      shapeBrief: store.createShapeBrief(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 1, "Shape brief id"),
+        requireArgument(arguments_, 0, "Project id"),
+        shapeBriefInput(
+          readInput(requireArgument(arguments_, 2, "Shape brief JSON file")),
+        ),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "shape" && subcommand === "approve") {
+    withStore(parsed.root, (store) => ({
+      shapeBrief: store.approveShapeBrief(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 0, "Shape brief id"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "launch" && subcommand === "create") {
+    withStore(parsed.root, (store) => ({
+      launchReadiness: store.createLaunchReadiness(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 1, "Launch readiness id"),
+        requireArgument(arguments_, 0, "Project id"),
+        launchReadinessInput(
+          readInput(
+            requireArgument(arguments_, 2, "Launch readiness JSON file"),
+          ),
+        ),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "launch" && subcommand === "authorize") {
+    withStore(parsed.root, (store) => ({
+      launchReadiness: store.authorizeLaunchReadiness(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 0, "Launch readiness id"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "outcome" && subcommand === "create") {
+    withStore(parsed.root, (store) => ({
+      outcomeReview: store.createOutcomeReview(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 1, "Outcome review id"),
+        requireArgument(arguments_, 0, "Project id"),
+        requireArgument(arguments_, 2, "Shape brief id"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "outcome" && subcommand === "record") {
+    withStore(parsed.root, (store) => {
+      const input = readInput(
+        requireArgument(arguments_, 1, "Outcome review JSON file"),
+      );
+      const decision = inputText(input, "decision");
+      if (decision !== "keep" && decision !== "change" && decision !== "stop") {
+        throw new Error(
+          "Outcome review decision must be keep, change, or stop.",
+        );
+      }
+      return {
+        outcomeReview: store.recordOutcomeReview(
+          requireActor(parsed.actor),
+          requireArgument(arguments_, 0, "Outcome review id"),
+          inputText(input, "observedResult"),
+          inputText(input, "changedAssumption"),
+          decision satisfies OutcomeDecision,
+        ),
+      };
+    });
     return 0;
   }
   if (command === "project" && subcommand === "create") {

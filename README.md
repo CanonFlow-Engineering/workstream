@@ -13,8 +13,9 @@ Human creates mandate
 
 M0 keeps all state under `.workstream/`. M1 adds an optional loopback-only
 local browser server. M2A adds Compass: evidence-backed local product direction
-before a delivery milestone. It does not need an account, a network connection,
-or a hosted service. Its governing limit is:
+before a delivery milestone. M2B adds Shape and Launch Readiness: a bounded
+proposal, local readiness evidence, and an outcome-review template. It does not
+need an account, a network connection, or a hosted service. Its governing limit is:
 
 ```text
 authority ≤ evidence ≤ observed scope
@@ -91,7 +92,28 @@ The loopback board has a Compass screen for local evidence, draft creation,
 imports, and projections. It does not add a remote action capability. See
 [Compass](docs/compass.md).
 
-## M0, M1, and M2A commands
+## M2B Shape and Launch Readiness
+
+Shape turns a human-selected Compass idea into a small, testable proposal. A
+Shape brief names its human owner and records the user problem, target user,
+outcome, evidence, assumptions, effort limit, journey, non-goals, risks, open
+questions, success criteria, scope-expansion paths, and excluded rabbit holes.
+Only its named human owner can approve it.
+
+Launch Readiness records candidate evidence, a user-facing note, known limits,
+support owner, rollback procedure, verification evidence, privacy and security
+declaration, and release checklist. The named human may record local
+authorization only after a Shape brief is approved. This is preparation for a
+separate decision—not an external launch permission. It never publishes,
+releases, deploys, tags, makes a GitHub write, or runs a command.
+
+Outcome Review preserves the original Shape success criteria as the expected
+measure. A human can later record an observed result, changed assumption, and
+keep, change, or stop decision. The loopback board adds distinct Shape, Launch
+Readiness, and Outcome Review screens and surfaces the next local human
+decision on the Project screen. See [Shape and Launch Readiness](docs/shaping-launch-readiness.md).
+
+## M0, M1, M2A, and M2B commands
 
 | Command           | Purpose                                                |
 | ----------------- | ------------------------------------------------------ |
@@ -114,7 +136,8 @@ imports, and projections. It does not add a remote action capability. See
 | `work blocked`    | Show blocked work.                                     |
 | `activity`        | Show append-only ledger activity.                      |
 
-The Compass, VISION, idea, assumption, trade-off, decision, and milestone
+The Compass, VISION, idea, assumption, trade-off, decision, milestone, Shape,
+Launch Readiness, and Outcome Review
 commands are listed in `workstream --help`. JSON input keeps complex records
 explicit and replayable instead of inferring policy from free-form UI state.
 
@@ -124,7 +147,7 @@ Only `human:<id>` can create projects, issue mandates, or decide a gate. An
 Architect agent can claim only ready work. It cannot claim blocked work. An
 agent cannot self-approve a work item.
 
-M0, M1, and M2A do not contain commands that merge, tag, publish, release, deploy,
+M0, M1, M2A, and M2B do not contain commands that merge, tag, publish, release, deploy,
 invite users, alter credentials, or change permissions. The local browser has
 no command-execution path. The exported `GitHubDryRun` interface has no
 network client and reports dry-run plans only.
@@ -163,4 +186,4 @@ remains a Node 24 package. The runners fail closed when their actual Node
 runtime differs from the published Assay toolchain. See the
 [Assay boundary](docs/assay-boundary.md).
 
-M0, M1, and M2A are licensed under [Apache-2.0](LICENSE).
+M0, M1, M2A, and M2B are licensed under [Apache-2.0](LICENSE).

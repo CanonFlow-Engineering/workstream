@@ -15,6 +15,7 @@
     "M0": "Milestone zero.",
     "M1": "Milestone one.",
     "M2A": "Milestone two, Compass local-first slice.",
+    "M2B": "Milestone two, Shape and Launch Readiness slice.",
     "NDJSON": "Newline-delimited JSON.",
     "PASS": "A recorded passing test outcome.",
     "README": "Repository readme document.",

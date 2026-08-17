@@ -149,6 +149,39 @@ const compassInput = (evidenceHash: string, owner = "owner") => ({
   title: "Local-first direction",
 });
 
+const shapeBriefInput = (evidenceHash: string, owner = "owner") => ({
+  assumptionIds: ["assumption-1"],
+  desiredOutcome: "A human can assess a small local proposal.",
+  effortLimit: "One bounded local slice.",
+  evidenceHashes: [evidenceHash],
+  ideaId: "idea-1",
+  nonGoals: ["No external effect."],
+  openQuestions: ["Which local measure best indicates value?"],
+  owner,
+  rabbitHoles: ["Do not add remote synchronization."],
+  risks: ["The proposal could expand beyond one slice."],
+  scopeExpansionPaths: ["Remote integration would add authority."],
+  solutionOutline: "Keep evidence and decisions in the local ledger.",
+  successCriteria: ["The named owner can inspect a bounded proposal."],
+  targetUser: "A human project owner.",
+  userJourney: "The owner reviews evidence and records a local decision.",
+  userProblem: "A selected idea lacks a bounded implementation proposal.",
+});
+
+const launchReadinessInput = (evidenceHash: string, owner = "owner") => ({
+  candidateEvidenceHash: evidenceHash,
+  changeNote: "Describe the local user-facing change.",
+  knownLimits: ["No external action exists."],
+  owner,
+  privacySecurityDeclaration:
+    "The local ledger sends no credentials or user data remotely.",
+  releaseChecklist: ["The named human reviews the local evidence."],
+  rollbackProcedure: "Stop the local milestone and preserve the ledger.",
+  shapeBriefId: "shape-1",
+  supportOwner: "owner",
+  verificationEvidenceHashes: [evidenceHash],
+});
+
 test("persists the SQLite ledger and reaches a human gate", () => {
   withTemporaryDirectory((root) => {
     const started = startClaimedWork(root);
@@ -878,6 +911,225 @@ test("uses equivalent Compass permissions through the loopback browser API", asy
       requiredObject(state, "compass").compasses instanceof Array,
       true,
     );
+  } finally {
+    await closeServer(server);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("records owner-approved Shape, local launch readiness, and an immutable outcome measure", () => {
+  withTemporaryDirectory((root) => {
+    const sourceRoot = join(root, "source");
+    const store = new WorkstreamStore(sourceRoot, fixedClock());
+    store.initialize(human);
+    store.createProject(human, "compass", "Compass", "Direction records.");
+    const evidence = store.attachProjectEvidence(
+      human,
+      "compass",
+      "research",
+      new TextEncoder().encode("Local source evidence."),
+    );
+    const idea = store.createIdea(skeptic, "idea-1", "compass", {
+      affectedUser: "A human project owner.",
+      assumption: "A bounded proposal is useful.",
+      costEstimate: "One small slice.",
+      evidenceHash: evidence.sha256,
+      expectedResult: "A local proposal can be reviewed.",
+      expiresAt: "2026-12-31T00:00:00.000Z",
+      problem: "An idea has no bounded shape.",
+      rejectionReason: "Reject if the evidence is not local.",
+      risk: "Scope expansion.",
+    });
+    store.reviewIdea(human, idea.id, "shaped");
+    store.createAssumption(skeptic, "assumption-1", "compass", {
+      confidence: "medium",
+      expiresAt: "2026-12-31T00:00:00.000Z",
+      owner: "owner",
+      statement: "The owner will inspect local evidence.",
+      testMethod: "Observe a local review.",
+    });
+    assert.throws(
+      () =>
+        store.createShapeBrief(architect, "shape-invalid", "compass", {
+          ...shapeBriefInput(evidence.sha256),
+          nonGoals: [],
+        }),
+      /non-goals/,
+    );
+    const shape = store.createShapeBrief(
+      architect,
+      "shape-1",
+      "compass",
+      shapeBriefInput(evidence.sha256),
+    );
+    assert.throws(
+      () => store.approveShapeBrief(skeptic, shape.id),
+      /requires a human actor/,
+    );
+    assert.throws(
+      () => store.approveShapeBrief({ kind: "human", id: "other" }, shape.id),
+      /named human owner/,
+    );
+    assert.equal(store.approveShapeBrief(human, shape.id).status, "approved");
+    assert.throws(
+      () =>
+        store.createLaunchReadiness(architect, "launch-invalid", "compass", {
+          ...launchReadinessInput(evidence.sha256),
+          verificationEvidenceHashes: [],
+        }),
+      /verification evidence/,
+    );
+    const readiness = store.createLaunchReadiness(
+      architect,
+      "launch-1",
+      "compass",
+      launchReadinessInput(evidence.sha256),
+    );
+    const beforeAuthorizationEvents = store.events().length;
+    assert.throws(
+      () => store.authorizeLaunchReadiness(skeptic, readiness.id),
+      /requires a human actor/,
+    );
+    assert.equal(store.events().length, beforeAuthorizationEvents);
+    assert.equal(
+      store.authorizeLaunchReadiness(human, readiness.id).status,
+      "authorized",
+    );
+    const review = store.createOutcomeReview(
+      human,
+      "outcome-1",
+      "compass",
+      shape.id,
+    );
+    assert.deepEqual(review.expectedMeasure, shape.successCriteria);
+    const recorded = store.recordOutcomeReview(
+      human,
+      review.id,
+      "The owner reviewed the local proposal.",
+      "The review needs no remote synchronization.",
+      "keep",
+    );
+    assert.deepEqual(recorded.expectedMeasure, shape.successCriteria);
+    assert.equal(recorded.decision, "keep");
+    assert.throws(
+      () =>
+        store.recordOutcomeReview(
+          human,
+          review.id,
+          "Another result.",
+          "Another assumption.",
+          "change",
+        ),
+      /immutable/,
+    );
+    const bundle = join(root, "bundle");
+    const snapshot = store.compassSnapshot("compass");
+    store.exportBundle(bundle);
+    store.close();
+
+    const imported = new WorkstreamStore(join(root, "imported"), fixedClock());
+    imported.importBundle(bundle);
+    assert.deepEqual(imported.compassSnapshot("compass"), snapshot);
+    assert.equal(imported.verify().valid, true);
+    imported.close();
+
+    writeFileSync(
+      join(bundle, "events.ndjson"),
+      `${readFileSync(join(bundle, "events.ndjson"), "utf8")}tampered`,
+    );
+    const tampered = new WorkstreamStore(join(root, "tampered"), fixedClock());
+    assert.throws(() => tampered.importBundle(bundle), /manifest digest/);
+    tampered.close();
+  });
+});
+
+test("uses equivalent owner denials through the loopback Shape and readiness API", async () => {
+  const root = mkdtempSync(join(tmpdir(), "workstream-m2b-server-"));
+  const server = createLocalServer(root);
+  try {
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected a loopback server address.");
+    }
+    const base = `http://127.0.0.1:${address.port}`;
+    await post(base, "/api/initialize", { actor: "human:owner" });
+    await post(base, "/api/projects", {
+      actor: "human:owner",
+      description: "M2B browser test.",
+      id: "m2b",
+      name: "M2B",
+    });
+    const attachment = await post(base, "/api/projects/m2b/evidence", {
+      actor: "human:owner",
+      content: "Local source evidence.",
+      kind: "research",
+    });
+    const hash = requiredText(requiredObject(attachment, "evidence"), "sha256");
+    await post(base, "/api/ideas", {
+      actor: "skeptic-agent:critic",
+      affectedUser: "Human owner",
+      assumption: "A shape is useful.",
+      costEstimate: "One slice.",
+      evidenceHash: hash,
+      expectedResult: "A proposal is visible.",
+      expiresAt: "2026-12-31T00:00:00.000Z",
+      id: "idea-1",
+      problem: "No proposal exists.",
+      projectId: "m2b",
+      rejectionReason: "Reject without evidence.",
+      risk: "Scope growth.",
+    });
+    await post(base, "/api/ideas/idea-1/review", {
+      actor: "human:owner",
+      status: "shaped",
+    });
+    await post(base, "/api/assumptions", {
+      actor: "skeptic-agent:critic",
+      confidence: "medium",
+      expiresAt: "2026-12-31T00:00:00.000Z",
+      id: "assumption-1",
+      owner: "owner",
+      projectId: "m2b",
+      statement: "A human will inspect it.",
+      testMethod: "Local review.",
+    });
+    await post(base, "/api/shapes", {
+      actor: "architect-agent:builder",
+      id: "shape-1",
+      projectId: "m2b",
+      ...shapeBriefInput(hash),
+    });
+    const denied = await fetch(`${base}/api/shapes/shape-1/approve`, {
+      body: JSON.stringify({ actor: "skeptic-agent:critic" }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    assert.equal(denied.status, 400);
+    assert.match(await denied.text(), /requires a human actor/);
+    await post(base, "/api/shapes/shape-1/approve", { actor: "human:owner" });
+    await post(base, "/api/launch-readiness", {
+      actor: "architect-agent:builder",
+      id: "launch-1",
+      projectId: "m2b",
+      ...launchReadinessInput(hash),
+    });
+    const launchDenied = await fetch(
+      `${base}/api/launch-readiness/launch-1/authorize`,
+      {
+        body: JSON.stringify({ actor: "llm-judge:judge" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      },
+    );
+    assert.equal(launchDenied.status, 400);
+    assert.match(await launchDenied.text(), /requires a human actor/);
+    const state = await post(base, "/api/launch-readiness/launch-1/authorize", {
+      actor: "human:owner",
+    });
+    assert.equal(requiredObject(state, "launchReadiness").status, "authorized");
   } finally {
     await closeServer(server);
     rmSync(root, { recursive: true, force: true });

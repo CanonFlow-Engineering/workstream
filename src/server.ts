@@ -123,6 +123,13 @@ const decisionOutcome = (
   throw new Error("Decision outcome is invalid.");
 };
 
+const outcomeDecision = (value: string): "keep" | "change" | "stop" => {
+  if (value === "keep" || value === "change" || value === "stop") {
+    return value;
+  }
+  throw new Error("Outcome review decision is invalid.");
+};
+
 const respondJson = (
   response: ServerResponse,
   status: number,
@@ -621,6 +628,141 @@ const handleApi = async (
             smallestUsefulResult: text(body, "smallestUsefulResult"),
             userProblem: text(body, "userProblem"),
           },
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/shapes") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        shapeBrief: store.createShapeBrief(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          {
+            assumptionIds: stringList(body, "assumptionIds"),
+            desiredOutcome: text(body, "desiredOutcome"),
+            effortLimit: text(body, "effortLimit"),
+            evidenceHashes: stringList(body, "evidenceHashes"),
+            ideaId: text(body, "ideaId"),
+            nonGoals: stringList(body, "nonGoals"),
+            openQuestions: stringList(body, "openQuestions"),
+            owner: text(body, "owner"),
+            rabbitHoles: stringList(body, "rabbitHoles"),
+            risks: stringList(body, "risks"),
+            scopeExpansionPaths: stringList(body, "scopeExpansionPaths"),
+            solutionOutline: text(body, "solutionOutline"),
+            successCriteria: stringList(body, "successCriteria"),
+            targetUser: text(body, "targetUser"),
+            userJourney: text(body, "userJourney"),
+            userProblem: text(body, "userProblem"),
+          },
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  const shapeApproveId = decodedItemPath(pathname, "/api/shapes/", "/approve");
+  if (shapeApproveId !== null) {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        shapeBrief: store.approveShapeBrief(actor(body), shapeApproveId),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/launch-readiness") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        launchReadiness: store.createLaunchReadiness(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          {
+            candidateEvidenceHash: text(body, "candidateEvidenceHash"),
+            changeNote: text(body, "changeNote"),
+            knownLimits: stringList(body, "knownLimits"),
+            owner: text(body, "owner"),
+            privacySecurityDeclaration: text(
+              body,
+              "privacySecurityDeclaration",
+            ),
+            releaseChecklist: stringList(body, "releaseChecklist"),
+            rollbackProcedure: text(body, "rollbackProcedure"),
+            shapeBriefId: text(body, "shapeBriefId"),
+            supportOwner: text(body, "supportOwner"),
+            verificationEvidenceHashes: stringList(
+              body,
+              "verificationEvidenceHashes",
+            ),
+          },
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  const launchAuthorizeId = decodedItemPath(
+    pathname,
+    "/api/launch-readiness/",
+    "/authorize",
+  );
+  if (launchAuthorizeId !== null) {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        launchReadiness: store.authorizeLaunchReadiness(
+          actor(body),
+          launchAuthorizeId,
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/outcome-reviews") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        outcomeReview: store.createOutcomeReview(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          text(body, "shapeBriefId"),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  const outcomeRecordId = decodedItemPath(
+    pathname,
+    "/api/outcome-reviews/",
+    "/record",
+  );
+  if (outcomeRecordId !== null) {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        outcomeReview: store.recordOutcomeReview(
+          actor(body),
+          outcomeRecordId,
+          text(body, "observedResult"),
+          text(body, "changedAssumption"),
+          outcomeDecision(text(body, "decision")),
         ),
         state: snapshot(store),
       })),

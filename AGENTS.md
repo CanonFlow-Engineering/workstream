@@ -14,7 +14,7 @@ mandate and an assigned work item.
 ## Prohibited agent actions
 
 An agent must not self-approve work. An agent must not claim blocked work.
-M0, M1, and M2A have no agent path for merge, tag, publication, release, deployment,
+M0 through M2B have no agent path for merge, tag, publication, release, deployment,
 user invitation, credential change, or permission change. M1's browser server
 binds to loopback only and has no GitHub synchronization path. Actor IDs sent
 to the local API identify ledger roles only; they are not authentication.
@@ -31,7 +31,16 @@ a new draft with source evidence.
 
 A `skeptic-agent` may create local direction records, but cannot claim work,
 record tests, record Judge results, or decide a gate. It cannot approve Compass
-versions. A decision is not evidence and does not authorize an external action.
+versions, Shape briefs, or launch-readiness records. A decision is not evidence
+and does not authorize an external action.
+
+## Shape and launch readiness
+
+M2B Shape briefs, readiness records, and outcome reviews are local ledger data.
+Only the named human owner approves a Shape brief or records launch-readiness
+authorization. That authorization is evidence of a trusted-local workflow
+decision only. It never permits a merge, tag, publication, release, deployment,
+GitHub write, command execution, or another external action.
 
 ## Policy and workflow changes
 
