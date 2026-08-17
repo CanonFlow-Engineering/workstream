@@ -67,10 +67,6 @@
     "runtime": {
       "name": "node",
       "version": "24.19.0"
-    },
-    "packageManager": {
-      "name": "npm",
-      "version": "11.6.2"
     }
   }
 }
