@@ -331,6 +331,7 @@ test("serves a loopback-only local browser work loop without GitHub synchronizat
     if (address === null || typeof address === "string") {
       throw new Error("Expected a loopback server address.");
     }
+    assert.equal(address.address, "127.0.0.1");
     const port = address.port;
     const base = `http://127.0.0.1:${port}`;
     const health = await fetch(`${base}/api/health`);
@@ -338,9 +339,15 @@ test("serves a loopback-only local browser work loop without GitHub synchronizat
     const healthBody = await jsonObject(health);
     assert.equal(healthBody.localOnly, true);
     assert.equal(healthBody.githubIntegration, "dry-run-only");
+    assert.equal(healthBody.actorIdsAreAuthentication, false);
+    assert.equal(healthBody.humanGate, "trusted-local-workflow-control");
     const page = await fetch(base);
     assert.equal(page.status, 200);
     assert.match(await page.text(), /Human approval queue/);
+    assert.match(
+      await (await fetch(base)).text(),
+      /Actor IDs are ledger labels/,
+    );
 
     await post(base, "/api/initialize", { actor: "human:owner" });
     await post(base, "/api/projects", {

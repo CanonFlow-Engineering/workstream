@@ -26,6 +26,7 @@
           >Evidence stays in this project’s
           <code>.workstream</code> directory.</span
         >
+        <span>Actor IDs are ledger labels, not browser authentication.</span>
       </div>
     </header>
 
@@ -64,12 +65,13 @@
           <button id="initialize" type="button">Initialize local ledger</button>
         </div>
         <p class="boundary">
-          Initialization and project creation require a human actor. This screen
-          creates only local SQLite records.
+          Initialization and project creation require a human ledger actor.
+          Actor IDs are not authentication. Use this screen only on a trusted
+          local machine. It creates only local SQLite records.
         </p>
         <form id="project-form" class="form-grid" novalidate>
           <label>
-            Human actor
+            Human ledger actor
             <input name="actor" value="human:owner" required />
           </label>
           <label>
@@ -113,7 +115,7 @@
         </div>
         <form id="work-form" class="form-grid" novalidate>
           <label>
-            Human actor
+            Human ledger actor
             <input name="actor" value="human:owner" required />
           </label>
           <label>
@@ -262,9 +264,10 @@
           </div>
         </div>
         <p class="boundary">
-          Only a human actor can accept, reject, or stop a work item. Acceptance
-          is a local ledger decision, not a merge, release, publication, or
-          deployment.
+          Only a human ledger actor can accept, reject, or stop a work item.
+          Actor IDs are not authentication. This trusted-local workflow control
+          does not authorize a merge, publication, release, deployment, GitHub
+          write, or other external action.
         </p>
         <div id="approval-queue" class="card-list" aria-live="polite"></div>
       </section>
@@ -273,8 +276,8 @@
     <footer>
       <p>
         Local-first M1. GitHub integration remains dry-run only. The browser
-        never receives a credential and the server binds to
-        <code>127.0.0.1</code>.
+        never receives a credential, actor IDs are not authentication, and the
+        server binds to <code>127.0.0.1</code>.
       </p>
     </footer>
     <script type="module" src="/app.js"></script>

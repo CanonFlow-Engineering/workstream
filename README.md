@@ -60,13 +60,15 @@ workstream serve . --port 3210
 
 The server binds to `127.0.0.1` only. It provides a Project screen, Work
 board, Evidence and handoff screen, and Human approval queue. The browser
-calls only this local server and stores no credentials. It cannot synchronize
-with GitHub, merge, publish, release, deploy, or make a human gate decision
-automatically.
+calls only this local server and stores no credentials. Actor IDs supplied to
+the local API are ledger labels, not authentication. Use this interface only
+on a trusted local machine.
 
 The Human approval queue shows only work that has a passing independent test
-record and a Judge `Pass` record. A human actor must still select accept,
-reject, or stop. Browser activity remains local SQLite ledger activity.
+record and a Judge `Pass` record. A human ledger actor must still select accept,
+reject, or stop. This is a trusted-local workflow control only. It does not
+authorize a merge, publication, release, deployment, GitHub write, or another
+external action. Browser activity remains local SQLite ledger activity.
 
 ## M0 and M1 commands
 

@@ -21,4 +21,4 @@ Usage:
 - Use `workstream work blocked [--root path]`.
 - Use `workstream activity [work-id] [--root path]`.
 
-The CLI writes only local SQLite state and content-addressed evidence. The browser server binds to `127.0.0.1` only. GitHub output is dry-run only; M1 adds no two-way synchronization.
+The CLI writes only local SQLite state and content-addressed evidence. The browser server binds to `127.0.0.1` only. Actor IDs are ledger labels, not authentication. The human gate is a trusted-local workflow control and does not authorize external actions. GitHub output is dry-run only; M1 adds no two-way synchronization.

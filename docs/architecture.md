@@ -25,7 +25,9 @@ network client, synchronization, or external write in M0 or M1.
 `workstream serve` starts a Node.js HTTP server on `127.0.0.1`. It serves
 bundled static HTML, CSS, and JavaScript and exposes a small same-origin local
 JSON API. The API opens the same SQLite store for each request and applies the
-existing domain permission checks before every mutation.
+existing domain permission checks before every mutation. Actor IDs identify
+ledger roles. They are not authentication, authorization, or a security
+boundary for a browser client. The local server is for a trusted local machine.
 
 The interface has four views: projects, a work board, work evidence and
 handoffs, and the human approval queue. It can attach local text evidence and
@@ -36,4 +38,6 @@ filesystem paths.
 
 The browser does not make verification authoritative by itself. It is a local
 projection and entry surface for the same ledger. The human gate remains a
-permission-checked ledger event.
+permission-checked ledger event. It is a trusted-local workflow control. It
+does not authorize a merge, publication, release, deployment, GitHub write, or
+another external action.

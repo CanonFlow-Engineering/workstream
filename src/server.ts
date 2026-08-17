@@ -174,7 +174,9 @@ const handleApi = async (
   const method = request.method ?? "GET";
   if (pathname === "/api/health" && method === "GET") {
     respondJson(response, 200, {
+      actorIdsAreAuthentication: false,
       githubIntegration: "dry-run-only",
+      humanGate: "trusted-local-workflow-control",
       localOnly: true,
       status: "ok",
     });
