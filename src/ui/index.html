@@ -43,6 +43,7 @@
       <button type="button" data-screen="project" aria-current="page">
         Project
       </button>
+      <button type="button" data-screen="compass">Compass</button>
       <button type="button" data-screen="board">Work board</button>
       <button type="button" data-screen="evidence">Evidence and handoff</button>
       <button type="button" data-screen="approval">Human approval queue</button>
@@ -99,6 +100,146 @@
           <button type="submit">Create local project</button>
         </form>
         <div id="project-list" class="card-list" aria-live="polite"></div>
+      </section>
+
+      <section
+        id="compass-screen"
+        class="screen"
+        hidden
+        aria-labelledby="compass-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Evidence-backed direction</p>
+            <h2 id="compass-heading">Compass</h2>
+          </div>
+        </div>
+        <p class="boundary">
+          Compass is local ledger data. A named human owner approves a version
+          or supersedes it with a new version. The Skeptic role can challenge
+          direction but cannot build, test, Judge, or approve. Actor IDs are
+          trusted-local labels, not authentication.
+        </p>
+        <div class="action-grid compass-actions">
+          <form id="project-evidence-form" class="card" novalidate>
+            <h3>Attach direction evidence</h3>
+            <label
+              >Human actor <input name="actor" value="human:owner" required
+            /></label>
+            <label
+              >Project
+              <select name="projectId" class="project-choice" required></select
+            ></label>
+            <label
+              >Kind <input name="kind" value="human-decision" required
+            /></label>
+            <label
+              >Local source text
+              <textarea name="content" rows="5" required></textarea>
+            </label>
+            <button type="submit">Store source evidence</button>
+          </form>
+          <form id="compass-form" class="card" novalidate>
+            <h3>Create Compass draft</h3>
+            <label
+              >Human actor <input name="actor" value="human:owner" required
+            /></label>
+            <label
+              >Project
+              <select name="projectId" class="project-choice" required></select
+            ></label>
+            <label
+              >Compass ID <input name="id" placeholder="compass-v1" required
+            /></label>
+            <label
+              >Compass JSON
+              <textarea name="input" rows="8" required>
+{"title":"Local direction","owner":"owner","principles":[{"id":"local-evidence","text":"Prefer local evidence.","evidenceHash":"paste-source-hash"}],"nonGoals":[{"id":"no-remote-writes","text":"Do not create remote effects.","evidenceHash":"paste-source-hash"}]}</textarea
+              >
+            </label>
+            <button type="submit">Create local draft</button>
+          </form>
+          <form id="vision-import-form" class="card" novalidate>
+            <h3>Import VISION.md</h3>
+            <label
+              >Human actor <input name="actor" value="human:owner" required
+            /></label>
+            <label
+              >Project
+              <select name="projectId" class="project-choice" required></select
+            ></label>
+            <label
+              >New Compass ID
+              <input name="id" placeholder="compass-import" required
+            /></label>
+            <label
+              >Generated VISION.md text
+              <textarea name="content" rows="8" required></textarea>
+            </label>
+            <button type="submit">Import as local draft</button>
+          </form>
+          <form id="compass-record-form" class="card" novalidate>
+            <h3>Record local direction item</h3>
+            <label
+              >Actor <input name="actor" value="skeptic-agent:critic" required
+            /></label>
+            <label
+              >Kind
+              <select name="kind">
+                <option value="idea">Idea</option>
+                <option value="assumption">Assumption</option>
+                <option value="tradeoff">Trade-off</option>
+                <option value="decision">Decision</option>
+                <option value="milestone">Milestone contract</option>
+              </select></label
+            >
+            <label
+              >Project
+              <select name="projectId" class="project-choice" required></select
+            ></label>
+            <label
+              >Record ID <input name="id" placeholder="idea-1" required
+            /></label>
+            <label
+              >Record JSON
+              <textarea name="input" rows="8" required>
+{"problem":"Problem to explore","affectedUser":"Affected user","expectedResult":"Observed result","evidenceHash":"paste-source-hash","assumption":"What must be true","risk":"Risk","costEstimate":"Small local slice","rejectionReason":"When to reject","expiresAt":"2026-12-31T00:00:00.000Z"}</textarea
+              >
+            </label>
+            <button type="submit">Record local item</button>
+          </form>
+        </div>
+        <div class="compass-grid">
+          <article class="card">
+            <h3>Current Compass versions</h3>
+            <div id="compass-list" aria-live="polite"></div>
+          </article>
+          <article class="card">
+            <h3>Idea inbox</h3>
+            <div id="idea-list" aria-live="polite"></div>
+          </article>
+          <article class="card">
+            <h3>Assumptions</h3>
+            <div id="assumption-list" aria-live="polite"></div>
+          </article>
+          <article class="card">
+            <h3>Trade-offs and decisions</h3>
+            <div id="tradeoff-list" aria-live="polite"></div>
+            <div id="decision-list" aria-live="polite"></div>
+          </article>
+          <article class="card">
+            <h3>Milestone contracts</h3>
+            <div id="milestone-list" aria-live="polite"></div>
+          </article>
+          <article class="card">
+            <h3>Approved VISION.md projection</h3>
+            <p class="empty">
+              Select an approved Compass project to view its generated
+              projection through the local API.
+            </p>
+            <pre id="vision-preview" class="vision-preview"></pre>
+          </article>
+        </div>
       </section>
 
       <section

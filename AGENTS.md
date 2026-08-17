@@ -14,13 +14,24 @@ mandate and an assigned work item.
 ## Prohibited agent actions
 
 An agent must not self-approve work. An agent must not claim blocked work.
-M0 and M1 have no agent path for merge, tag, publication, release, deployment,
+M0, M1, and M2A have no agent path for merge, tag, publication, release, deployment,
 user invitation, credential change, or permission change. M1's browser server
 binds to loopback only and has no GitHub synchronization path. Actor IDs sent
 to the local API identify ledger roles only; they are not authentication.
 
 Do not treat a ledger event as proof beyond its attached evidence. Preserve
 the local evidence bytes and use `workstream verify` before handoff.
+
+## Compass and Skeptic role
+
+Compass direction is local ledger data. A named human owner approves or
+supersedes a Compass version. Principles and non-goals require linked evidence.
+`VISION.md` is generated from an approved version; imported vision text creates
+a new draft with source evidence.
+
+A `skeptic-agent` may create local direction records, but cannot claim work,
+record tests, record Judge results, or decide a gate. It cannot approve Compass
+versions. A decision is not evidence and does not authorize an external action.
 
 ## Policy and workflow changes
 

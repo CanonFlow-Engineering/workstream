@@ -6,8 +6,14 @@ import { parseActor, WorkstreamStore } from "./adapters/workstream-store.js";
 import { startLocalServer } from "./server.js";
 import type {
   Actor,
+  AssumptionConfidence,
+  AssumptionInput,
+  CompassDraftInput,
+  CompassStatement,
+  DecisionOutcome,
   GateDecision,
   JudgeVerdict,
+  MilestoneContractInput,
   TestVerdict,
 } from "./domain/model.js";
 
@@ -77,6 +83,103 @@ const requireArgument = (
   return value;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const readInput = (path: string): Record<string, unknown> => {
+  const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+  if (!isRecord(parsed)) {
+    throw new Error("Input JSON must be an object.");
+  }
+  return parsed;
+};
+
+const inputText = (input: Record<string, unknown>, key: string): string => {
+  const value = input[key];
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Input ${key} must be non-empty text.`);
+  }
+  return value;
+};
+
+const inputStringList = (
+  input: Record<string, unknown>,
+  key: string,
+): readonly string[] => {
+  const value = input[key];
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`Input ${key} must be a non-empty text list.`);
+  }
+  const strings: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || item.length === 0) {
+      throw new Error(`Input ${key} must be a non-empty text list.`);
+    }
+    strings.push(item);
+  }
+  return strings;
+};
+
+const inputStatements = (
+  input: Record<string, unknown>,
+  key: string,
+): readonly CompassStatement[] => {
+  const value = input[key];
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`Input ${key} must be a non-empty statement list.`);
+  }
+  const statements: CompassStatement[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) {
+      throw new Error(`Input ${key} has an invalid statement.`);
+    }
+    statements.push({
+      evidenceHash: inputText(item, "evidenceHash"),
+      id: inputText(item, "id"),
+      text: inputText(item, "text"),
+    });
+  }
+  return statements;
+};
+
+const compassInput = (input: Record<string, unknown>): CompassDraftInput => ({
+  nonGoals: inputStatements(input, "nonGoals"),
+  owner: inputText(input, "owner"),
+  principles: inputStatements(input, "principles"),
+  title: inputText(input, "title"),
+});
+
+const assumptionInput = (input: Record<string, unknown>): AssumptionInput => {
+  const confidence = inputText(input, "confidence");
+  if (
+    confidence !== "low" &&
+    confidence !== "medium" &&
+    confidence !== "high"
+  ) {
+    throw new Error("Input confidence is invalid.");
+  }
+  return {
+    confidence: confidence satisfies AssumptionConfidence,
+    expiresAt: inputText(input, "expiresAt"),
+    owner: inputText(input, "owner"),
+    statement: inputText(input, "statement"),
+    testMethod: inputText(input, "testMethod"),
+  };
+};
+
+const milestoneInput = (
+  input: Record<string, unknown>,
+): MilestoneContractInput => ({
+  acceptanceTests: inputStringList(input, "acceptanceTests"),
+  evidenceRequired: inputStringList(input, "evidenceRequired"),
+  humanGate: inputText(input, "humanGate"),
+  nonGoals: inputStringList(input, "nonGoals"),
+  risks: inputStringList(input, "risks"),
+  rollbackCondition: inputText(input, "rollbackCondition"),
+  smallestUsefulResult: inputText(input, "smallestUsefulResult"),
+  userProblem: inputText(input, "userProblem"),
+});
+
 const testVerdicts = ["PASS", "FAIL", "BLOCKED"];
 const judgeVerdicts = ["Pass", "Fail", "Inconclusive", "ToolFailure"];
 const gateDecisions = ["accept", "reject", "stop"];
@@ -130,6 +233,223 @@ const main = (): number => {
         root,
       }),
     );
+    return 0;
+  }
+  if (command === "compass" && subcommand === "evidence") {
+    withStore(parsed.root, (store) => ({
+      evidence: store.attachProjectEvidence(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 0, "Project id"),
+        requireArgument(arguments_, 1, "Evidence kind"),
+        readFileSync(requireArgument(arguments_, 2, "Evidence file")),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "compass" && subcommand === "create") {
+    withStore(parsed.root, (store) => ({
+      compass: store.createCompass(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 1, "Compass id"),
+        requireArgument(arguments_, 0, "Project id"),
+        compassInput(
+          readInput(requireArgument(arguments_, 2, "Compass JSON file")),
+        ),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "compass" && subcommand === "approve") {
+    withStore(parsed.root, (store) => ({
+      compass: store.approveCompass(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 0, "Compass id"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "compass" && subcommand === "supersede") {
+    withStore(parsed.root, (store) => ({
+      compass: store.supersedeCompass(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 0, "Current Compass id"),
+        requireArgument(arguments_, 1, "Replacement Compass id"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "vision" && subcommand === "export") {
+    withStore(parsed.root, (store) => ({
+      vision: store.exportVision(
+        requireArgument(arguments_, 0, "Project id"),
+        requireArgument(arguments_, 1, "VISION.md destination"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "vision" && subcommand === "import") {
+    withStore(parsed.root, (store) => ({
+      compass: store.importVision(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 1, "Compass id"),
+        requireArgument(arguments_, 0, "Project id"),
+        requireArgument(arguments_, 2, "VISION.md source"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "idea" && subcommand === "create") {
+    withStore(parsed.root, (store) => {
+      const input = readInput(requireArgument(arguments_, 2, "Idea JSON file"));
+      return {
+        idea: store.createIdea(
+          requireActor(parsed.actor),
+          requireArgument(arguments_, 1, "Idea id"),
+          requireArgument(arguments_, 0, "Project id"),
+          {
+            affectedUser: inputText(input, "affectedUser"),
+            assumption: inputText(input, "assumption"),
+            costEstimate: inputText(input, "costEstimate"),
+            evidenceHash: inputText(input, "evidenceHash"),
+            expectedResult: inputText(input, "expectedResult"),
+            expiresAt: inputText(input, "expiresAt"),
+            problem: inputText(input, "problem"),
+            rejectionReason: inputText(input, "rejectionReason"),
+            risk: inputText(input, "risk"),
+          },
+        ),
+      };
+    });
+    return 0;
+  }
+  if (command === "idea" && subcommand === "review") {
+    const status = requireArgument(arguments_, 1, "Idea status");
+    if (status !== "shaped" && status !== "rejected" && status !== "deferred") {
+      throw new Error("Idea status must be shaped, rejected, or deferred.");
+    }
+    withStore(parsed.root, (store) => ({
+      idea: store.reviewIdea(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 0, "Idea id"),
+        status,
+      ),
+    }));
+    return 0;
+  }
+  if (command === "assumption" && subcommand === "create") {
+    withStore(parsed.root, (store) => ({
+      assumption: store.createAssumption(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 1, "Assumption id"),
+        requireArgument(arguments_, 0, "Project id"),
+        assumptionInput(
+          readInput(requireArgument(arguments_, 2, "Assumption JSON file")),
+        ),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "assumption" && subcommand === "result") {
+    const result = requireArgument(arguments_, 1, "Assumption result");
+    if (result !== "validated" && result !== "invalidated") {
+      throw new Error("Assumption result must be validated or invalidated.");
+    }
+    withStore(parsed.root, (store) => ({
+      assumption: store.recordAssumptionResult(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 0, "Assumption id"),
+        result,
+        requireArgument(arguments_, 2, "Evidence SHA-256"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "tradeoff" && subcommand === "create") {
+    withStore(parsed.root, (store) => {
+      const input = readInput(
+        requireArgument(arguments_, 2, "Trade-off JSON file"),
+      );
+      return {
+        tradeoff: store.createTradeoff(
+          requireActor(parsed.actor),
+          requireArgument(arguments_, 1, "Trade-off id"),
+          requireArgument(arguments_, 0, "Project id"),
+          inputText(input, "question"),
+          inputText(input, "yesCase"),
+          inputText(input, "noCase"),
+          inputText(input, "evidenceHash"),
+        ),
+      };
+    });
+    return 0;
+  }
+  if (command === "tradeoff" && subcommand === "decide") {
+    const decision = requireArgument(arguments_, 1, "Trade-off decision");
+    if (
+      decision !== "accept" &&
+      decision !== "reject" &&
+      decision !== "defer"
+    ) {
+      throw new Error("Trade-off decision must be accept, reject, or defer.");
+    }
+    withStore(parsed.root, (store) => ({
+      tradeoff: store.decideTradeoff(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 0, "Trade-off id"),
+        decision,
+        requireArgument(arguments_, 2, "Decision reason"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "decision" && subcommand === "record") {
+    withStore(parsed.root, (store) => {
+      const input = readInput(
+        requireArgument(arguments_, 2, "Decision JSON file"),
+      );
+      const outcome = inputText(input, "outcome");
+      if (
+        outcome !== "accept" &&
+        outcome !== "reject" &&
+        outcome !== "defer" &&
+        outcome !== "stop"
+      ) {
+        throw new Error("Decision outcome is invalid.");
+      }
+      const supersedes = input.supersedesDecisionId;
+      if (
+        supersedes !== undefined &&
+        supersedes !== null &&
+        typeof supersedes !== "string"
+      ) {
+        throw new Error("Decision supersedesDecisionId must be text or null.");
+      }
+      return {
+        decision: store.recordDecision(
+          requireActor(parsed.actor),
+          requireArgument(arguments_, 1, "Decision id"),
+          requireArgument(arguments_, 0, "Project id"),
+          inputText(input, "subject"),
+          outcome satisfies DecisionOutcome,
+          inputText(input, "reason"),
+          inputText(input, "evidenceHash"),
+          supersedes ?? null,
+        ),
+      };
+    });
+    return 0;
+  }
+  if (command === "milestone" && subcommand === "create") {
+    withStore(parsed.root, (store) => ({
+      milestone: store.createMilestone(
+        requireActor(parsed.actor),
+        requireArgument(arguments_, 1, "Milestone id"),
+        requireArgument(arguments_, 0, "Project id"),
+        milestoneInput(
+          readInput(requireArgument(arguments_, 2, "Milestone JSON file")),
+        ),
+      ),
+    }));
     return 0;
   }
   if (command === "project" && subcommand === "create") {

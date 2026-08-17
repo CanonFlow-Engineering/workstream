@@ -52,6 +52,12 @@ export const actorMayAttachEvidence = (
   actor: Actor,
   claimant: string | null,
 ): Result<undefined> => {
+  if (actor.kind === "skeptic-agent") {
+    return {
+      kind: "error",
+      message: "A Skeptic agent cannot attach work evidence.",
+    };
+  }
   if (actor.kind !== "architect-agent") {
     return { kind: "ok", value: undefined };
   }

@@ -1,4 +1,4 @@
-# M0 and M1 architecture
+# M0, M1, and M2A architecture
 
 Workstream has one local storage boundary. `.workstream/workstream.db` is a
 SQLite database with an append-only event ledger and read projections. The
@@ -41,3 +41,23 @@ projection and entry surface for the same ledger. The human gate remains a
 permission-checked ledger event. It is a trusted-local workflow control. It
 does not authorize a merge, publication, release, deployment, GitHub write, or
 another external action.
+
+## M2A Compass projection
+
+M2A adds Compass records as append-only ledger events and local SQLite
+projections. A Compass version is immutable after creation. Its named human
+owner can approve it; that owner can later supersede an approved version only
+with a replacement draft in the same project. Principles and non-goals each
+reference project-linked content-addressed evidence.
+
+Ideas, assumptions, trade-off cards, decisions, and milestone contracts have
+their own immutable creation events. Reviews and results append a separate
+event instead of overwriting the original record. A later decision names the
+decision it supersedes. Bundle import replays every M2A event after hash and
+evidence verification, so projections never replace the ledger as the source
+of truth.
+
+`VISION.md` is an approved Compass projection. It is generated locally and is
+not parsed as authority. Import accepts only the generated projection form,
+stores the file as project evidence, and creates a new Compass draft whose
+statements reference that source evidence.
