@@ -1,0 +1,7 @@
+verification/
+artifacts/
+.workstream/
+tests/
+docs/
+templates/
+*.tgz
