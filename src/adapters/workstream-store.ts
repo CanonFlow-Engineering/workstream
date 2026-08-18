@@ -1887,7 +1887,7 @@ export class WorkstreamStore {
     const project = this.requireProject(projectId);
     const snapshot = this.compassSnapshot(projectId);
     const events = this.events();
-    const core = {
+    const core: Omit<HandoffPack, "packSha256"> = {
       assumptions: snapshot.assumptions,
       auditFindings: this.audit(projectId),
       compass: this.activeCompass(projectId),
@@ -1904,7 +1904,7 @@ export class WorkstreamStore {
       ),
       outcomeReviews: snapshot.outcomeReviews,
       project,
-      schemaVersion: "workstream-handoff/0.1" as const,
+      schemaVersion: "workstream-handoff/0.1",
       shapeBriefs: snapshot.shapeBriefs,
       templateDrafts: snapshot.templateDrafts,
       tradeoffs: snapshot.tradeoffs,

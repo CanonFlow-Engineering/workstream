@@ -10,18 +10,16 @@ external-action path.
 findings. A finding has a rule ID, `Blocker`, `Attention`, or `Information`
 severity, a local subject identifier, a cause, and a next local action.
 
-| Rule      | Condition                                                                | Severity    |
-| --------- | ------------------------------------------------------------------------ | ----------- |
-| `WSA-A01` | Shape or Launch data exists without an approved Compass                  | Blocker     |
-| `WSA-A02` | An approved Shape uses an expired, invalidated, or missing assumption    | Blocker     |
-| `WSA-A03` | A selected idea has expired                                              | Attention   |
-| `WSA-A04` | A Launch Readiness record is not locally authorized                      | Attention   |
-| `WSA-A05` | Authorized Launch Readiness has no Outcome Review template               | Attention   |
-| `WSA-A06` | A decision has been superseded and is not current direction              | Information |
-| `WSA-A07` | Work awaits a human gate                                                 | Attention   |
-| `WSA-A08` | A human gate lacks passing Tester or Judge evidence                      | Blocker     |
-| `WSA-A09` | A referenced evidence object is absent or fails verification             | Blocker     |
-| `WSA-A10` | Shape, Launch, or Outcome text conflicts with a current Compass non-goal | Attention   |
+- `WSA-A01` is a Blocker when Shape or Launch data exists without an approved Compass.
+- `WSA-A02` is a Blocker when an approved Shape uses an expired, invalidated, or missing assumption.
+- `WSA-A03` is Attention when a selected idea has expired.
+- `WSA-A04` is Attention when a Launch Readiness record is not locally authorized.
+- `WSA-A05` is Attention when authorized Launch Readiness has no Outcome Review template.
+- `WSA-A06` is Information when a decision has been superseded and is not current direction.
+- `WSA-A07` is Attention when work awaits a human gate.
+- `WSA-A08` is a Blocker when a human gate lacks passing Tester or Judge evidence.
+- `WSA-A09` is a Blocker when a referenced evidence object is absent or fails verification.
+- `WSA-A10` is Attention when Shape, Launch, or Outcome text conflicts with a current Compass non-goal.
 
 The non-goal check is deliberately bounded. It recognizes an explicit positive
 reuse of the text after a leading `Do not`, `Must not`, `No`, `Never`, or
