@@ -1007,3 +1007,123 @@ test("installed tarball records bounded Shape, readiness, and outcome records wi
     rmSync(installation.consumer, { force: true, recursive: true });
   }
 });
+
+test("installed tarball audits local records and verifies a redacted Handoff Pack", () => {
+  const installation = installCandidate();
+  try {
+    const root = join(installation.consumer, "m2c-state");
+    const source = join(installation.consumer, "m2c-source.txt");
+    const handoff = join(installation.consumer, "m2c-handoff");
+    writeFileSync(source, "Independent local evidence must remain redacted.\n");
+    cliJson(
+      installation,
+      ["init", root, "--actor", "human:owner"],
+      "initialize M2C state",
+    );
+    cliJson(
+      installation,
+      [
+        "project",
+        "create",
+        "m2c",
+        "M2C project",
+        "Independent public package M2C verification",
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "create M2C project",
+    );
+    cliJson(
+      installation,
+      [
+        "compass",
+        "evidence",
+        "m2c",
+        "research",
+        source,
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "attach M2C evidence",
+    );
+    assertFailure(
+      cli(installation, [
+        "template",
+        "create",
+        "m2c",
+        "npm-package",
+        "template-denied",
+        "--root",
+        root,
+        "--actor",
+        "skeptic-agent:critic",
+      ]),
+      "deny Skeptic template draft creation",
+    );
+    const template = cliJson(
+      installation,
+      [
+        "template",
+        "create",
+        "m2c",
+        "release-preparation-milestone",
+        "template-1",
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "create M2C local template draft",
+    );
+    assert.equal(template.templateDraft.status, "draft");
+    const audit = cliJson(
+      installation,
+      ["audit", "m2c", "--root", root],
+      "read M2C audit",
+    );
+    assert.deepEqual(audit.findings, []);
+    const pack = cliJson(
+      installation,
+      ["handoff", "export", "m2c", handoff, "--root", root],
+      "export redacted M2C Handoff Pack",
+    ).handoff;
+    assert.match(pack.packSha256, /^[a-f0-9]{64}$/);
+    const handoffJson = join(handoff, "handoff.json");
+    assert.equal(
+      readFileSync(handoffJson, "utf8").includes(
+        "Independent local evidence must remain redacted.",
+      ),
+      false,
+    );
+    assertSuccess(
+      cli(installation, [
+        "handoff",
+        "verify",
+        "m2c",
+        handoffJson,
+        "--root",
+        root,
+      ]),
+      "verify redacted M2C Handoff Pack",
+    );
+    writeFileSync(handoffJson, "{}\n");
+    assertFailure(
+      cli(installation, [
+        "handoff",
+        "verify",
+        "m2c",
+        handoffJson,
+        "--root",
+        root,
+      ]),
+      "reject changed M2C Handoff Pack",
+    );
+    assertSuccess(cli(installation, ["verify", root]), "verify M2C state");
+  } finally {
+    rmSync(installation.consumer, { force: true, recursive: true });
+  }
+});

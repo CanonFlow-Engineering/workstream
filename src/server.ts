@@ -130,6 +130,24 @@ const outcomeDecision = (value: string): "keep" | "change" | "stop" => {
   throw new Error("Outcome review decision is invalid.");
 };
 
+const templateKind = (
+  value: string,
+):
+  | "npm-package"
+  | "assay-rule-policy-change"
+  | "protocol-standards-integration"
+  | "release-preparation-milestone" => {
+  if (
+    value === "npm-package" ||
+    value === "assay-rule-policy-change" ||
+    value === "protocol-standards-integration" ||
+    value === "release-preparation-milestone"
+  ) {
+    return value;
+  }
+  throw new Error("Template kind is invalid.");
+};
+
 const respondJson = (
   response: ServerResponse,
   status: number,
@@ -335,6 +353,26 @@ const handleApi = async (
       200,
       withStore(root, (store) => ({
         projection: store.vision(visionProjectId),
+      })),
+    );
+    return true;
+  }
+  const auditProjectId = decodedProjectPath(pathname, "/audit");
+  if (auditProjectId !== null && method === "GET") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({ findings: store.audit(auditProjectId) })),
+    );
+    return true;
+  }
+  const handoffProjectId = decodedProjectPath(pathname, "/handoff");
+  if (handoffProjectId !== null && method === "GET") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        handoff: store.handoffPack(handoffProjectId),
       })),
     );
     return true;
@@ -741,6 +779,22 @@ const handleApi = async (
           text(body, "id"),
           text(body, "projectId"),
           text(body, "shapeBriefId"),
+        ),
+        state: snapshot(store),
+      })),
+    );
+    return true;
+  }
+  if (pathname === "/api/templates") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        templateDraft: store.createTemplateDraft(
+          actor(body),
+          text(body, "id"),
+          text(body, "projectId"),
+          templateKind(text(body, "templateKind")),
         ),
         state: snapshot(store),
       })),

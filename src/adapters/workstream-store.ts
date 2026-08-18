@@ -21,6 +21,7 @@ import type {
   AssumptionConfidence,
   AssumptionInput,
   AssumptionResult,
+  AuditFinding,
   CompassDraftInput,
   CompassSnapshot,
   CompassStatement,
@@ -31,6 +32,7 @@ import type {
   EvidenceReference,
   ExportManifest,
   GateDecision,
+  HandoffPack,
   Idea,
   IdeaInput,
   IdeaStatus,
@@ -48,6 +50,8 @@ import type {
   ShapeBriefInput,
   ShapeBriefStatus,
   TestVerdict,
+  TemplateDraft,
+  TemplateKind,
   TradeoffCard,
   TradeoffDecision,
   VerificationReport,
@@ -187,6 +191,67 @@ const outcomeDecisions: readonly Exclude<OutcomeDecision, null>[] = [
   "change",
   "stop",
 ];
+
+const templateKinds: readonly TemplateKind[] = [
+  "npm-package",
+  "assay-rule-policy-change",
+  "protocol-standards-integration",
+  "release-preparation-milestone",
+];
+
+const templateDefinition = (
+  kind: TemplateKind,
+): {
+  readonly title: string;
+  readonly fields: Readonly<Record<string, string>>;
+} => {
+  const definitions: Readonly<
+    Record<
+      TemplateKind,
+      {
+        readonly title: string;
+        readonly fields: Readonly<Record<string, string>>;
+      }
+    >
+  > = {
+    "npm-package": {
+      title: "npm package proposal",
+      fields: {
+        evidence: "Add local user and package evidence before approval.",
+        nonGoals: "Do not publish from this draft.",
+        successMeasure: "State one measurable user result.",
+      },
+    },
+    "assay-rule-policy-change": {
+      title: "Assay rule or policy change proposal",
+      fields: {
+        evidence:
+          "Add a falsifier, policy evidence, and fixture evidence before approval.",
+        nonGoals: "Do not weaken a policy only to obtain a passing result.",
+        successMeasure: "State the observed rule or policy outcome.",
+      },
+    },
+    "protocol-standards-integration": {
+      title: "Protocol or standards integration proposal",
+      fields: {
+        evidence:
+          "Add licence, compatibility, and source evidence before approval.",
+        nonGoals: "Do not add remote synchronization or external authority.",
+        successMeasure: "State the bounded interoperability result.",
+      },
+    },
+    "release-preparation-milestone": {
+      title: "Release preparation proposal",
+      fields: {
+        evidence:
+          "Add exact artifact, verification, support, and rollback evidence before approval.",
+        nonGoals: "Do not publish, tag, release, or deploy from this draft.",
+        successMeasure: "State the human reviewable readiness result.",
+      },
+    },
+  };
+  return definitions[kind];
+};
 
 const requiredEnum = <T extends string>(
   value: string,
@@ -1547,8 +1612,334 @@ export class WorkstreamStore {
       milestones: this.milestones(projectId),
       outcomeReviews: this.outcomeReviews(projectId),
       shapeBriefs: this.shapeBriefs(projectId),
+      templateDrafts: this.templateDrafts(projectId),
       tradeoffs: this.tradeoffs(projectId),
     };
+  }
+
+  templateDrafts(projectId?: string): readonly TemplateDraft[] {
+    const rows =
+      projectId === undefined
+        ? this.database
+            .prepare(
+              "SELECT id, project_id, template_kind, owner, title, fields_json, status, created_at FROM template_drafts ORDER BY created_at, id",
+            )
+            .all()
+        : this.database
+            .prepare(
+              "SELECT id, project_id, template_kind, owner, title, fields_json, status, created_at FROM template_drafts WHERE project_id = ? ORDER BY created_at, id",
+            )
+            .all(projectId);
+    return rows.map((row) => this.templateDraftFromRow(row));
+  }
+
+  createTemplateDraft(
+    actor: Actor,
+    id: string,
+    projectId: string,
+    templateKind: TemplateKind,
+  ): TemplateDraft {
+    const permission = requireHuman(actor, "Template draft creation");
+    if (permission.kind === "error") {
+      throw new Error(permission.message);
+    }
+    this.requireProject(projectId);
+    this.requireIdentifier(id, "Template draft id");
+    if (!templateKinds.some((candidate) => candidate === templateKind)) {
+      throw new Error("Template kind is invalid.");
+    }
+    const template = templateDefinition(templateKind);
+    const createdAt = this.clock();
+    this.transaction(() => {
+      this.append(actor, "template-draft.created", {
+        createdAt,
+        fields: template.fields,
+        id,
+        owner: actor.id,
+        projectId,
+        templateKind,
+        title: template.title,
+      });
+      this.database
+        .prepare(
+          "INSERT INTO template_drafts (id, project_id, template_kind, owner, title, fields_json, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run(
+          id,
+          projectId,
+          templateKind,
+          actor.id,
+          template.title,
+          canonicalJson(template.fields),
+          "draft",
+          createdAt,
+        );
+    });
+    return this.requireTemplateDraft(id);
+  }
+
+  audit(projectId: string): readonly AuditFinding[] {
+    this.requireProject(projectId);
+    const findings: AuditFinding[] = [];
+    const observedAt = this.clock();
+    const snapshot = this.compassSnapshot(projectId);
+    const compass = this.activeCompass(projectId);
+    const activeShapeOrLaunch =
+      snapshot.shapeBriefs.length > 0 || snapshot.launchReadiness.length > 0;
+    if (activeShapeOrLaunch && compass === null) {
+      findings.push({
+        cause:
+          "Shape or Launch Readiness data exists without an approved Compass.",
+        nextLocalAction:
+          "Have the named human owner approve a Compass version.",
+        ruleId: "WSA-A01",
+        severity: "Blocker",
+        subjectId: projectId,
+      });
+    }
+
+    const assumptions = new Map(
+      snapshot.assumptions.map((assumption) => [assumption.id, assumption]),
+    );
+    for (const shape of snapshot.shapeBriefs) {
+      if (shape.status !== "approved") {
+        continue;
+      }
+      for (const assumptionId of shape.assumptionIds) {
+        const assumption = assumptions.get(assumptionId);
+        if (
+          assumption === undefined ||
+          assumption.expired ||
+          assumption.result === "invalidated"
+        ) {
+          findings.push({
+            cause:
+              assumption === undefined
+                ? `Approved Shape references missing assumption ${assumptionId}.`
+                : `Approved Shape references an ${assumption.expired ? "expired" : "invalidated"} assumption ${assumptionId}.`,
+            nextLocalAction:
+              "Record current assumption evidence, then shape a replacement if the proposal changes.",
+            ruleId: "WSA-A02",
+            severity: "Blocker",
+            subjectId: shape.id,
+          });
+        }
+      }
+    }
+
+    for (const idea of snapshot.ideas) {
+      if (idea.status === "shaped" && idea.expiresAt < observedAt) {
+        findings.push({
+          cause: "A selected idea has expired.",
+          nextLocalAction:
+            "Review the idea with current evidence before relying on it.",
+          ruleId: "WSA-A03",
+          severity: "Attention",
+          subjectId: idea.id,
+        });
+      }
+    }
+
+    for (const readiness of snapshot.launchReadiness) {
+      if (readiness.status !== "authorized") {
+        findings.push({
+          cause:
+            "Launch Readiness is a draft and has no local human authorization.",
+          nextLocalAction:
+            "Have the named human owner authorize the record after inspecting its evidence.",
+          ruleId: "WSA-A04",
+          severity: "Attention",
+          subjectId: readiness.id,
+        });
+      } else if (
+        !snapshot.outcomeReviews.some(
+          (review) => review.shapeBriefId === readiness.shapeBriefId,
+        )
+      ) {
+        findings.push({
+          cause: "Authorized Launch Readiness has no Outcome Review template.",
+          nextLocalAction:
+            "Create a local Outcome Review that preserves the Shape success criteria.",
+          ruleId: "WSA-A05",
+          severity: "Attention",
+          subjectId: readiness.id,
+        });
+      }
+    }
+
+    for (const decision of snapshot.decisions) {
+      if (decision.supersededBy !== null) {
+        findings.push({
+          cause: `Decision is superseded by ${decision.supersededBy} and is not current direction.`,
+          nextLocalAction:
+            "Use the replacement decision in the current project review.",
+          ruleId: "WSA-A06",
+          severity: "Information",
+          subjectId: decision.id,
+        });
+      }
+    }
+
+    const projectWork = this.workItems().filter(
+      (work) => work.projectId === projectId,
+    );
+    for (const work of projectWork) {
+      if (work.status !== "awaiting-gate") {
+        continue;
+      }
+      findings.push({
+        cause: "Work is awaiting a human gate decision.",
+        nextLocalAction:
+          "The human owner can accept, reject, or stop this local work item.",
+        ruleId: "WSA-A07",
+        severity: "Attention",
+        subjectId: work.id,
+      });
+      const events = this.events();
+      const hasPassingTest = events.some(
+        (event) =>
+          event.type === "test.recorded" &&
+          event.payload.workId === work.id &&
+          event.payload.verdict === "PASS",
+      );
+      const hasPassingJudge = events.some(
+        (event) =>
+          event.type === "judge.recorded" &&
+          event.payload.workId === work.id &&
+          event.payload.verdict === "Pass",
+      );
+      if (!hasPassingTest || !hasPassingJudge) {
+        findings.push({
+          cause:
+            "A human gate is missing required passing Tester or Judge evidence.",
+          nextLocalAction:
+            "Record independent Tester PASS and LLM Judge Pass evidence before the human gate.",
+          ruleId: "WSA-A08",
+          severity: "Blocker",
+          subjectId: work.id,
+        });
+      }
+    }
+
+    const evidence = new Map(
+      this.evidenceReferences().map((reference) => [
+        reference.sha256,
+        reference,
+      ]),
+    );
+    const verification = this.verify();
+    for (const reference of this.referencedEvidence(projectId)) {
+      if (
+        !evidence.has(reference.hash) ||
+        verification.errors.some((error) => error.includes(reference.hash))
+      ) {
+        findings.push({
+          cause: `Evidence reference ${reference.hash} is absent or invalid.`,
+          nextLocalAction:
+            "Restore the original evidence bytes or record a new local record with valid evidence.",
+          ruleId: "WSA-A09",
+          severity: "Blocker",
+          subjectId: reference.subjectId,
+        });
+      }
+    }
+
+    if (compass !== null) {
+      for (const shape of snapshot.shapeBriefs) {
+        this.auditNonGoalConflict(findings, compass, shape.id, [
+          shape.solutionOutline,
+          shape.userJourney,
+          ...shape.scopeExpansionPaths,
+          ...shape.rabbitHoles,
+        ]);
+      }
+      for (const readiness of snapshot.launchReadiness) {
+        this.auditNonGoalConflict(findings, compass, readiness.id, [
+          readiness.changeNote,
+          readiness.rollbackProcedure,
+          ...readiness.knownLimits,
+          ...readiness.releaseChecklist,
+        ]);
+      }
+      for (const review of snapshot.outcomeReviews) {
+        this.auditNonGoalConflict(findings, compass, review.id, [
+          review.observedResult ?? "",
+          review.changedAssumption ?? "",
+        ]);
+      }
+    }
+
+    const severityOrder: Readonly<Record<AuditFinding["severity"], number>> = {
+      Attention: 1,
+      Blocker: 0,
+      Information: 2,
+    };
+    return findings.sort(
+      (left, right) =>
+        severityOrder[left.severity] - severityOrder[right.severity] ||
+        left.ruleId.localeCompare(right.ruleId) ||
+        left.subjectId.localeCompare(right.subjectId) ||
+        left.cause.localeCompare(right.cause),
+    );
+  }
+
+  handoffPack(projectId: string): HandoffPack {
+    const project = this.requireProject(projectId);
+    const snapshot = this.compassSnapshot(projectId);
+    const events = this.events();
+    const core = {
+      assumptions: snapshot.assumptions,
+      auditFindings: this.audit(projectId),
+      compass: this.activeCompass(projectId),
+      decisions: snapshot.decisions,
+      eventChainSha256: events.at(-1)?.sha256 ?? zeroHash,
+      evidence: this.projectEvidenceReferences(projectId),
+      ideas: snapshot.ideas,
+      launchReadiness: snapshot.launchReadiness,
+      ledgerVerification: this.verify(),
+      milestones: snapshot.milestones,
+      openWorkGates: this.workItems().filter(
+        (work) =>
+          work.projectId === projectId && work.status === "awaiting-gate",
+      ),
+      outcomeReviews: snapshot.outcomeReviews,
+      project,
+      schemaVersion: "workstream-handoff/0.1" as const,
+      shapeBriefs: snapshot.shapeBriefs,
+      templateDrafts: snapshot.templateDrafts,
+      tradeoffs: snapshot.tradeoffs,
+    };
+    return { ...core, packSha256: sha256(canonicalJson(core)) };
+  }
+
+  exportHandoff(projectId: string, destination: string): HandoffPack {
+    const target = resolve(destination);
+    const pack = this.handoffPack(projectId);
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, "handoff.json"), canonicalJson(pack));
+    writeFileSync(join(target, "handoff.md"), this.renderHandoff(pack), "utf8");
+    return pack;
+  }
+
+  verifyHandoffPack(projectId: string, source: string): HandoffPack {
+    const parsed: unknown = JSON.parse(readFileSync(resolve(source), "utf8"));
+    if (!isRecord(parsed)) {
+      throw new Error("Handoff Pack must be a JSON object.");
+    }
+    const declaredHash = parsed.packSha256;
+    if (typeof declaredHash !== "string" || !isSha256(declaredHash)) {
+      throw new Error("Handoff Pack has no valid pack SHA-256.");
+    }
+    const core = { ...parsed };
+    delete core.packSha256;
+    if (sha256(canonicalJson(core)) !== declaredHash) {
+      throw new Error("Handoff Pack SHA-256 does not match its content.");
+    }
+    const current = this.handoffPack(projectId);
+    if (current.eventChainSha256 !== parsed.eventChainSha256) {
+      throw new Error("Handoff Pack does not bind to the current event chain.");
+    }
+    return current;
   }
 
   work(id: string): WorkItem | null {
@@ -2055,6 +2446,209 @@ export class WorkstreamStore {
     return review;
   }
 
+  private templateDraftFromRow(row: SqlRow): TemplateDraft {
+    const kind = requiredEnum(
+      stringValue(row, "template_kind"),
+      templateKinds,
+      "Template kind",
+    );
+    const fields = parseJsonRecord(
+      stringValue(row, "fields_json"),
+      "Template draft fields",
+    );
+    const textFields: Record<string, string> = {};
+    for (const [key, value] of Object.entries(fields)) {
+      if (typeof value !== "string") {
+        throw new Error("Template draft fields must contain text values.");
+      }
+      textFields[key] = value;
+    }
+    if (stringValue(row, "status") !== "draft") {
+      throw new Error("Template draft status is unknown.");
+    }
+    return {
+      fields: textFields,
+      id: stringValue(row, "id"),
+      owner: stringValue(row, "owner"),
+      projectId: stringValue(row, "project_id"),
+      status: "draft",
+      templateKind: kind,
+      title: stringValue(row, "title"),
+      createdAt: stringValue(row, "created_at"),
+    };
+  }
+
+  private requireTemplateDraft(id: string): TemplateDraft {
+    const draft = this.templateDrafts().find(
+      (candidate) => candidate.id === id,
+    );
+    if (draft === undefined) {
+      throw new Error(`Template draft ${id} does not exist.`);
+    }
+    return draft;
+  }
+
+  private projectEvidenceReferences(
+    projectId: string,
+  ): readonly EvidenceReference[] {
+    return this.database
+      .prepare(
+        "SELECT DISTINCT evidence.sha256 AS sha256, evidence.bytes AS bytes FROM evidence LEFT JOIN project_evidence ON project_evidence.evidence_hash = evidence.sha256 LEFT JOIN work_items ON work_items.mandate_evidence_hash = evidence.sha256 OR work_items.id IN (SELECT work_id FROM work_evidence WHERE evidence_hash = evidence.sha256) WHERE project_evidence.project_id = ? OR work_items.project_id = ? ORDER BY sha256",
+      )
+      .all(projectId, projectId)
+      .map((row) => {
+        const hash = stringValue(row, "sha256");
+        return {
+          bytes: numberValue(row, "bytes"),
+          path: `evidence/sha256/${hash}`,
+          sha256: hash,
+        };
+      });
+  }
+
+  private referencedEvidence(
+    projectId: string,
+  ): readonly { readonly hash: string; readonly subjectId: string }[] {
+    const snapshot = this.compassSnapshot(projectId);
+    const references: { hash: string; subjectId: string }[] = [];
+    const add = (subjectId: string, hash: string | null): void => {
+      if (hash !== null) {
+        references.push({ hash, subjectId });
+      }
+    };
+    for (const compass of snapshot.compasses) {
+      add(compass.id, compass.sourceVisionEvidenceHash);
+      for (const statement of [...compass.principles, ...compass.nonGoals]) {
+        add(compass.id, statement.evidenceHash);
+      }
+    }
+    for (const idea of snapshot.ideas) add(idea.id, idea.evidenceHash);
+    for (const assumption of snapshot.assumptions) {
+      add(assumption.id, assumption.resultEvidenceHash);
+    }
+    for (const tradeoff of snapshot.tradeoffs)
+      add(tradeoff.id, tradeoff.evidenceHash);
+    for (const decision of snapshot.decisions)
+      add(decision.id, decision.evidenceHash);
+    for (const shape of snapshot.shapeBriefs) {
+      for (const hash of shape.evidenceHashes) add(shape.id, hash);
+    }
+    for (const readiness of snapshot.launchReadiness) {
+      add(readiness.id, readiness.candidateEvidenceHash);
+      for (const hash of readiness.verificationEvidenceHashes) {
+        add(readiness.id, hash);
+      }
+    }
+    for (const work of this.workItems()) {
+      if (work.projectId === projectId) add(work.id, work.mandateEvidenceHash);
+      if (work.projectId === projectId) {
+        for (const reference of this.workEvidence(work.id)) {
+          add(work.id, reference.sha256);
+        }
+      }
+    }
+    return references.sort(
+      (left, right) =>
+        left.hash.localeCompare(right.hash) ||
+        left.subjectId.localeCompare(right.subjectId),
+    );
+  }
+
+  private auditNonGoalConflict(
+    findings: AuditFinding[],
+    compass: CompassVersion,
+    subjectId: string,
+    texts: readonly string[],
+  ): void {
+    for (const nonGoal of compass.nonGoals) {
+      const prohibited = this.nonGoalSubject(nonGoal.text);
+      if (prohibited.length === 0) {
+        continue;
+      }
+      const conflict = texts.some((text) => {
+        const normalized = this.normalizedText(text);
+        return (
+          normalized.includes(prohibited) &&
+          !/^(do not|must not|no|never|without)\b/u.test(normalized)
+        );
+      });
+      if (conflict) {
+        findings.push({
+          cause: `Record text conflicts with Compass non-goal ${nonGoal.id}.`,
+          nextLocalAction:
+            "Revise the local record or supersede the Compass with evidence-backed human direction.",
+          ruleId: "WSA-A10",
+          severity: "Attention",
+          subjectId,
+        });
+      }
+    }
+  }
+
+  private normalizedText(value: string): string {
+    return value
+      .toLocaleLowerCase("en-US")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/\s+/gu, " ")
+      .trim();
+  }
+
+  private nonGoalSubject(value: string): string {
+    return this.normalizedText(value).replace(
+      /^(do not|must not|no|never|without)\s+/u,
+      "",
+    );
+  }
+
+  private renderHandoff(pack: HandoffPack): string {
+    const list = (items: readonly string[]): string =>
+      items.length === 0
+        ? "- None\n"
+        : `${items.map((item) => `- ${item}`).join("\n")}\n`;
+    return [
+      "<!-- workstream-handoff/0.1 -->",
+      "",
+      `# Handoff Pack: ${pack.project.name}`,
+      "",
+      `- Project ID: ${pack.project.id}`,
+      `- Event-chain SHA-256: ${pack.eventChainSha256}`,
+      `- Pack SHA-256: ${pack.packSha256}`,
+      `- Source ledger valid: ${pack.ledgerVerification.valid}`,
+      "",
+      "## Current Compass",
+      "",
+      pack.compass === null
+        ? "No approved Compass version."
+        : `Version ${pack.compass.version}: ${pack.compass.title}`,
+      "",
+      "## Open human gates",
+      "",
+      list(
+        pack.openWorkGates.map((work) => `${work.id}: ${work.title}`),
+      ).trimEnd(),
+      "",
+      "## Decision Audit",
+      "",
+      list(
+        pack.auditFindings.map(
+          (finding) =>
+            `${finding.severity} ${finding.ruleId} ${finding.subjectId}: ${finding.cause} Next: ${finding.nextLocalAction}`,
+        ),
+      ).trimEnd(),
+      "",
+      "## Redacted evidence references",
+      "",
+      "Evidence bytes are intentionally omitted. Attach this pack manually where needed.",
+      "",
+      list(
+        pack.evidence.map(
+          (reference) => `${reference.sha256} (${reference.bytes} bytes)`,
+        ),
+      ).trimEnd(),
+      "",
+    ].join("\n");
+  }
+
   private nextCompassVersion(projectId: string): number {
     const row = this.database
       .prepare(
@@ -2530,6 +3124,16 @@ export class WorkstreamStore {
         decision TEXT,
         created_at TEXT NOT NULL,
         recorded_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS template_drafts (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id),
+        template_kind TEXT NOT NULL,
+        owner TEXT NOT NULL,
+        title TEXT NOT NULL,
+        fields_json TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL
       );
     `);
   }
@@ -3182,6 +3786,36 @@ export class WorkstreamStore {
           decision,
           requireText(payload, "recordedAt"),
           requireText(payload, "outcomeReviewId"),
+        );
+      return;
+    }
+    if (event.type === "template-draft.created") {
+      const templateKind = requireText(payload, "templateKind");
+      if (!templateKinds.some((candidate) => candidate === templateKind)) {
+        throw new Error("Bundle template kind is unknown.");
+      }
+      const fields = payload.fields;
+      if (!isRecord(fields)) {
+        throw new Error("Bundle template draft fields are malformed.");
+      }
+      for (const value of Object.values(fields)) {
+        if (typeof value !== "string") {
+          throw new Error("Bundle template draft fields must contain text.");
+        }
+      }
+      this.database
+        .prepare(
+          "INSERT INTO template_drafts (id, project_id, template_kind, owner, title, fields_json, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run(
+          requireText(payload, "id"),
+          requireText(payload, "projectId"),
+          templateKind,
+          requireText(payload, "owner"),
+          requireText(payload, "title"),
+          canonicalJson(fields),
+          "draft",
+          requireText(payload, "createdAt"),
         );
       return;
     }

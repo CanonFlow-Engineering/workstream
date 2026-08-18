@@ -1,4 +1,4 @@
-# M0, M1, and M2A architecture
+# Workstream local-first architecture
 
 Workstream has one local storage boundary. `.workstream/workstream.db` is a
 SQLite database with an append-only event ledger and read projections. The
@@ -18,7 +18,7 @@ events and evidence. `import` accepts only an empty local store after it checks
 the manifest, file layout, event chain, and every artifact.
 
 The GitHub integration seam is a dry-run interface. It has no token input,
-network client, synchronization, or external write in M0 through M2B.
+network client, synchronization, or external write in M0 through M2C.
 
 ## M1 local browser boundary
 
@@ -82,3 +82,23 @@ is recorded.
 The loopback browser uses fixed local API routes for the new records and the
 same domain checks as the CLI. It has no route that can execute a launch,
 command, deployment, publication, GitHub write, or remote synchronization.
+
+## M2C Decision Audit and Handoff Pack
+
+M2C introduces only derived projections over the same local ledger. Decision
+Audit reads project-local Compass, Shape, launch, outcome, work-gate, and
+evidence projections and returns a canonically ordered finding list. It does
+not append an event, modify a record, or decide a human gate.
+
+Handoff Pack serializes the current project projection as canonical JSON and
+Markdown. The pack includes the event-chain hash, current ledger verification
+result, audit findings, and only evidence hashes and byte metadata. Its
+`packSha256` is calculated over the canonical content without the hash field.
+Verification recomputes that value and rejects a pack whose event-chain hash
+does not equal the current local ledger. Raw evidence bytes remain only in the
+content-addressed local evidence store and portable bundle export.
+
+Template drafts are separate immutable ledger events and SQLite projections.
+They contain fixed local prompt text and `draft` status only. There is no API or
+transition that treats a template as Compass, Shape, decision, or launch
+approval.

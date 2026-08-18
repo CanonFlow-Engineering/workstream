@@ -25,3 +25,10 @@ M2A Compass statements must reference evidence already linked to their local
 project. A generated `VISION.md` shows those references but is only a readable
 projection. On import, Workstream stores the imported file as a new local
 evidence object and uses that address for the imported draft statements.
+
+M2C Handoff Pack is a separate redacted projection, not a portable evidence
+bundle. It contains evidence SHA-256 addresses and byte metadata but never
+copies raw evidence bytes. Its `packSha256` covers canonical pack content
+without the hash field and the covered content includes the final source
+event-chain hash and ledger-verification result. `handoff verify` rejects a
+changed pack or one that does not bind to the current local event chain.

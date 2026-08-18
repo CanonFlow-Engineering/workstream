@@ -25,6 +25,10 @@ Usage:
 - Use `workstream launch authorize <launch-readiness-id> --actor human:<owner-id>`.
 - Use `workstream outcome create <project-id> <outcome-review-id> <shape-brief-id> --actor human:<id>`.
 - Use `workstream outcome record <outcome-review-id> <outcome-review-json> --actor human:<id>`.
+- Use `workstream template create <project-id> <npm-package|assay-rule-policy-change|protocol-standards-integration|release-preparation-milestone> <draft-id> --actor human:<owner-id>`.
+- Use `workstream audit <project-id> [--root path]` for deterministic local Decision Audit findings.
+- Use `workstream handoff export <project-id> <directory> [--root path]` for redacted Markdown and JSON Handoff Pack projections.
+- Use `workstream handoff verify <project-id> <handoff-json> [--root path]` to verify a Handoff Pack hash against the current local event chain.
 - Use `workstream work create <project-id> <work-id> <title> --actor human:<id>`.
 - Use `workstream mandate issue <work-id> <mandate-file> --actor human:<id>`.
 - Use `workstream work claim <work-id> --actor architect-agent:<id>`.
@@ -54,4 +58,10 @@ candidate and verification evidence, change note, limits, support owner,
 rollback procedure, privacy and security declaration, and checklist. Outcome
 records preserve the Shape success criteria as their expected measure.
 
-The CLI writes only local SQLite state and content-addressed evidence. The browser server binds to `127.0.0.1` only. Actor IDs are ledger labels, not authentication. The human gate is a trusted-local workflow control and does not authorize external actions. The Skeptic role can record local direction work but cannot build, test, Judge, or approve a Compass, Shape, or launch-readiness record. GitHub output is dry-run only; M2B adds no two-way synchronization, credentials, command execution, or remote action capability. A local launch-readiness authorization never publishes, releases, deploys, tags, or writes to GitHub.
+M2C Decision Audit is read-only. It reports stable `WSA-A01` through
+`WSA-A10` findings with a severity, local subject, cause, and next local
+action. Handoff Packs are local, redacted projections: they include evidence
+hashes and metadata, never raw evidence bytes. Built-in templates create only
+local drafts and cannot approve a Compass, Shape, decision, or launch record.
+
+The CLI writes only local SQLite state and content-addressed evidence. The browser server binds to `127.0.0.1` only. Actor IDs are ledger labels, not authentication. The human gate is a trusted-local workflow control and does not authorize external actions. The Skeptic role can record local direction work but cannot build, test, Judge, or approve a Compass, Shape, or launch-readiness record. GitHub output is dry-run only; M2C adds no two-way synchronization, credentials, command execution, or remote action capability. A local launch-readiness authorization never publishes, releases, deploys, tags, or writes to GitHub.

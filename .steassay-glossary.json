@@ -16,6 +16,7 @@
     "M1": "Milestone one.",
     "M2A": "Milestone two, Compass local-first slice.",
     "M2B": "Milestone two, Shape and Launch Readiness slice.",
+    "M2C": "Milestone two, Decision Audit and Handoff Pack slice.",
     "NDJSON": "Newline-delimited JSON.",
     "PASS": "A recorded passing test outcome.",
     "README": "Repository readme document.",
@@ -24,6 +25,7 @@
     "SQLITE": "Structured Query Language embedded database engine.",
     "UTF-8": "Unicode Transformation Format 8-bit encoding.",
     "UI": "User interface.",
-    "VISION": "Generated Compass vision projection."
+    "VISION": "Generated Compass vision projection.",
+    "WSA": "Workstream audit rule identifier prefix."
   }
 }
