@@ -129,6 +129,42 @@ current local records, audit findings, and redacted evidence hashes and metadata
 only—never raw evidence bytes. It is suitable for manual attachment to another
 system, but Workstream makes no remote write. See [Decision Audit and Handoff Pack](docs/decision-audit-handoff.md).
 
+## M2C human-validation trial
+
+Technical checks confirm deterministic behavior. They do not confirm that a
+human understands an Audit finding or that a Handoff Pack helps a decision.
+
+Run a separate blinded manual trial after trusted-main qualification. In this
+trial, _blinded_ means that the participant does not know the expected finding
+before the first answer.
+
+1. An operator creates a new disposable `.workstream` directory and a random
+   project name. Do not use existing trial data or edit SQLite directly.
+2. The operator uses existing Workstream commands to create one deterministic
+   Audit condition, or a valid no-finding condition.
+3. Before the server starts, the operator saves the expected project, finding,
+   subject, and next action in a local manifest. The operator records the
+   manifest SHA-256 and does not serve, print, commit, or show the manifest to
+   the participant.
+4. The operator starts a separate loopback-only test instance. The participant
+   opens only the browser view.
+5. The participant opens **Decision Audit** and states the project, subject,
+   and next local action. Start timing when the Audit screen opens. Stop timing
+   after the first answer. Do not use command or browser response time as human
+   time. Do not refresh or retry before the first answer.
+6. The operator compares the first answer with the sealed manifest. The
+   operator reveals the expected result only after that comparison.
+7. The operator records whether the finding was correct, relevant, and clear.
+   A no-finding condition must not create a false blocker.
+
+The current M2C screen can support a basic interface check after its result is
+known. It cannot support a blinded trial.
+
+After the real CanonFlow Foundation trial, a human records **Keep**,
+**Change**, or **Stop** for Workstream, ONDCFlow, and one Assay project. Do
+not begin the next delivery milestone before all three decisions exist.
+Evidence can inform a human decision. It cannot replace one.
+
 ## Local commands
 
 | Command           | Purpose                                                |
