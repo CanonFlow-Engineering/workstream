@@ -33,7 +33,7 @@ requires a separate human mandate and an implementation outside this scope.
 
 ## Outcome review
 
-An outcome template copies the Shape brief's success criteria as its immutable
+An Outcome Review copies the Shape brief's success criteria as its immutable
 expected measure. A human later records an observed result, changed assumption,
 and one `keep`, `change`, or `stop` decision. The original expected measure is
 preserved so learning does not rewrite the prediction after the fact.

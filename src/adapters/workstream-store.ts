@@ -50,8 +50,6 @@ import type {
   ShapeBriefInput,
   ShapeBriefStatus,
   TestVerdict,
-  TemplateDraft,
-  TemplateKind,
   TradeoffCard,
   TradeoffDecision,
   VerificationReport,
@@ -191,67 +189,6 @@ const outcomeDecisions: readonly Exclude<OutcomeDecision, null>[] = [
   "change",
   "stop",
 ];
-
-const templateKinds: readonly TemplateKind[] = [
-  "npm-package",
-  "assay-rule-policy-change",
-  "protocol-standards-integration",
-  "release-preparation-milestone",
-];
-
-const templateDefinition = (
-  kind: TemplateKind,
-): {
-  readonly title: string;
-  readonly fields: Readonly<Record<string, string>>;
-} => {
-  const definitions: Readonly<
-    Record<
-      TemplateKind,
-      {
-        readonly title: string;
-        readonly fields: Readonly<Record<string, string>>;
-      }
-    >
-  > = {
-    "npm-package": {
-      title: "npm package proposal",
-      fields: {
-        evidence: "Add local user and package evidence before approval.",
-        nonGoals: "Do not publish from this draft.",
-        successMeasure: "State one measurable user result.",
-      },
-    },
-    "assay-rule-policy-change": {
-      title: "Assay rule or policy change proposal",
-      fields: {
-        evidence:
-          "Add a falsifier, policy evidence, and fixture evidence before approval.",
-        nonGoals: "Do not weaken a policy only to obtain a passing result.",
-        successMeasure: "State the observed rule or policy outcome.",
-      },
-    },
-    "protocol-standards-integration": {
-      title: "Protocol or standards integration proposal",
-      fields: {
-        evidence:
-          "Add licence, compatibility, and source evidence before approval.",
-        nonGoals: "Do not add remote synchronization or external authority.",
-        successMeasure: "State the bounded interoperability result.",
-      },
-    },
-    "release-preparation-milestone": {
-      title: "Release preparation proposal",
-      fields: {
-        evidence:
-          "Add exact artifact, verification, support, and rollback evidence before approval.",
-        nonGoals: "Do not publish, tag, release, or deploy from this draft.",
-        successMeasure: "State the human reviewable readiness result.",
-      },
-    },
-  };
-  return definitions[kind];
-};
 
 const requiredEnum = <T extends string>(
   value: string,
@@ -1612,70 +1549,8 @@ export class WorkstreamStore {
       milestones: this.milestones(projectId),
       outcomeReviews: this.outcomeReviews(projectId),
       shapeBriefs: this.shapeBriefs(projectId),
-      templateDrafts: this.templateDrafts(projectId),
       tradeoffs: this.tradeoffs(projectId),
     };
-  }
-
-  templateDrafts(projectId?: string): readonly TemplateDraft[] {
-    const rows =
-      projectId === undefined
-        ? this.database
-            .prepare(
-              "SELECT id, project_id, template_kind, owner, title, fields_json, status, created_at FROM template_drafts ORDER BY created_at, id",
-            )
-            .all()
-        : this.database
-            .prepare(
-              "SELECT id, project_id, template_kind, owner, title, fields_json, status, created_at FROM template_drafts WHERE project_id = ? ORDER BY created_at, id",
-            )
-            .all(projectId);
-    return rows.map((row) => this.templateDraftFromRow(row));
-  }
-
-  createTemplateDraft(
-    actor: Actor,
-    id: string,
-    projectId: string,
-    templateKind: TemplateKind,
-  ): TemplateDraft {
-    const permission = requireHuman(actor, "Template draft creation");
-    if (permission.kind === "error") {
-      throw new Error(permission.message);
-    }
-    this.requireProject(projectId);
-    this.requireIdentifier(id, "Template draft id");
-    if (!templateKinds.some((candidate) => candidate === templateKind)) {
-      throw new Error("Template kind is invalid.");
-    }
-    const template = templateDefinition(templateKind);
-    const createdAt = this.clock();
-    this.transaction(() => {
-      this.append(actor, "template-draft.created", {
-        createdAt,
-        fields: template.fields,
-        id,
-        owner: actor.id,
-        projectId,
-        templateKind,
-        title: template.title,
-      });
-      this.database
-        .prepare(
-          "INSERT INTO template_drafts (id, project_id, template_kind, owner, title, fields_json, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .run(
-          id,
-          projectId,
-          templateKind,
-          actor.id,
-          template.title,
-          canonicalJson(template.fields),
-          "draft",
-          createdAt,
-        );
-    });
-    return this.requireTemplateDraft(id);
   }
 
   audit(projectId: string): readonly AuditFinding[] {
@@ -1757,7 +1632,7 @@ export class WorkstreamStore {
         )
       ) {
         findings.push({
-          cause: "Authorized Launch Readiness has no Outcome Review template.",
+          cause: "Authorized Launch Readiness has no Outcome Review record.",
           nextLocalAction:
             "Create a local Outcome Review that preserves the Shape success criteria.",
           ruleId: "WSA-A05",
@@ -1906,7 +1781,6 @@ export class WorkstreamStore {
       project,
       schemaVersion: "workstream-handoff/0.1",
       shapeBriefs: snapshot.shapeBriefs,
-      templateDrafts: snapshot.templateDrafts,
       tradeoffs: snapshot.tradeoffs,
     };
     return { ...core, packSha256: sha256(canonicalJson(core)) };
@@ -2450,48 +2324,6 @@ export class WorkstreamStore {
       throw new Error(`Outcome review ${id} does not exist.`);
     }
     return review;
-  }
-
-  private templateDraftFromRow(row: SqlRow): TemplateDraft {
-    const kind = requiredEnum(
-      stringValue(row, "template_kind"),
-      templateKinds,
-      "Template kind",
-    );
-    const fields = parseJsonRecord(
-      stringValue(row, "fields_json"),
-      "Template draft fields",
-    );
-    const textFields: Record<string, string> = {};
-    for (const [key, value] of Object.entries(fields)) {
-      if (typeof value !== "string") {
-        throw new Error("Template draft fields must contain text values.");
-      }
-      textFields[key] = value;
-    }
-    if (stringValue(row, "status") !== "draft") {
-      throw new Error("Template draft status is unknown.");
-    }
-    return {
-      fields: textFields,
-      id: stringValue(row, "id"),
-      owner: stringValue(row, "owner"),
-      projectId: stringValue(row, "project_id"),
-      status: "draft",
-      templateKind: kind,
-      title: stringValue(row, "title"),
-      createdAt: stringValue(row, "created_at"),
-    };
-  }
-
-  private requireTemplateDraft(id: string): TemplateDraft {
-    const draft = this.templateDrafts().find(
-      (candidate) => candidate.id === id,
-    );
-    if (draft === undefined) {
-      throw new Error(`Template draft ${id} does not exist.`);
-    }
-    return draft;
   }
 
   private projectEvidenceReferences(
@@ -3130,16 +2962,6 @@ export class WorkstreamStore {
         decision TEXT,
         created_at TEXT NOT NULL,
         recorded_at TEXT
-      );
-      CREATE TABLE IF NOT EXISTS template_drafts (
-        id TEXT PRIMARY KEY,
-        project_id TEXT NOT NULL REFERENCES projects(id),
-        template_kind TEXT NOT NULL,
-        owner TEXT NOT NULL,
-        title TEXT NOT NULL,
-        fields_json TEXT NOT NULL,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL
       );
     `);
   }
@@ -3792,36 +3614,6 @@ export class WorkstreamStore {
           decision,
           requireText(payload, "recordedAt"),
           requireText(payload, "outcomeReviewId"),
-        );
-      return;
-    }
-    if (event.type === "template-draft.created") {
-      const templateKind = requireText(payload, "templateKind");
-      if (!templateKinds.some((candidate) => candidate === templateKind)) {
-        throw new Error("Bundle template kind is unknown.");
-      }
-      const fields = payload.fields;
-      if (!isRecord(fields)) {
-        throw new Error("Bundle template draft fields are malformed.");
-      }
-      for (const value of Object.values(fields)) {
-        if (typeof value !== "string") {
-          throw new Error("Bundle template draft fields must contain text.");
-        }
-      }
-      this.database
-        .prepare(
-          "INSERT INTO template_drafts (id, project_id, template_kind, owner, title, fields_json, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .run(
-          requireText(payload, "id"),
-          requireText(payload, "projectId"),
-          templateKind,
-          requireText(payload, "owner"),
-          requireText(payload, "title"),
-          canonicalJson(fields),
-          "draft",
-          requireText(payload, "createdAt"),
         );
       return;
     }

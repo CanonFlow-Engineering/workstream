@@ -10,7 +10,7 @@ The Assay runners require Node 20.20.2 and fail before running either CLI when
 that condition is not true. CI uses the same exact runner for this separate
 gate.
 
-STEAssay is Markdown only. It observes the README, agent rules, templates, and
-M0 and M1 documentation. It cannot scan TypeScript CLI source. The CLI
+STEAssay is Markdown only. It observes the README, agent rules, mandate
+material, and M0 and M1 documentation. It cannot scan TypeScript CLI source. The CLI
 reference documents that surface. The Judge separately runs installed CLI
 smoke tests.

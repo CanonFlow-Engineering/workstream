@@ -1305,24 +1305,6 @@ test("audits local decision gaps deterministically and binds a redacted Handoff 
     );
     writeFileSync(evidencePath, "Evidence bytes must stay local.");
 
-    const draft = store.createTemplateDraft(
-      human,
-      "template-1",
-      "audit",
-      "release-preparation-milestone",
-    );
-    assert.equal(draft.status, "draft");
-    assert.throws(
-      () =>
-        store.createTemplateDraft(
-          skeptic,
-          "template-denied",
-          "audit",
-          "npm-package",
-        ),
-      /requires a human actor/,
-    );
-    assert.equal(store.templateDrafts("audit").length, 1);
     store.createProject(
       human,
       "audit-b",
@@ -1392,7 +1374,7 @@ test("audits local decision gaps deterministically and binds a redacted Handoff 
   });
 });
 
-test("serves audit, redacted Handoff Pack, and template role rules through the loopback API", async () => {
+test("serves audit and a redacted Handoff Pack through the loopback API", async () => {
   const root = mkdtempSync(join(tmpdir(), "workstream-m2c-server-"));
   const server = createLocalServer(root);
   try {
@@ -1420,25 +1402,6 @@ test("serves audit, redacted Handoff Pack, and template role rules through the l
       content: "browser evidence must not enter the pack",
       kind: "research",
     });
-    const denied = await fetch(`${base}/api/templates`, {
-      body: JSON.stringify({
-        actor: "skeptic-agent:critic",
-        id: "template-denied",
-        projectId: "m2c",
-        templateKind: "npm-package",
-      }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    });
-    assert.equal(denied.status, 400);
-    assert.match(await denied.text(), /requires a human actor/);
-    const created = await post(base, "/api/templates", {
-      actor: "human:owner",
-      id: "template-1",
-      projectId: "m2c",
-      templateKind: "npm-package",
-    });
-    assert.equal(requiredObject(created, "templateDraft").status, "draft");
     const audit = await jsonObject(
       await fetch(`${base}/api/projects/m2c/audit`),
     );

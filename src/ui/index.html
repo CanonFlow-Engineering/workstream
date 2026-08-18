@@ -49,7 +49,6 @@
       <button type="button" data-screen="outcome">Outcome Review</button>
       <button type="button" data-screen="audit">Decision Audit</button>
       <button type="button" data-screen="handoff-pack">Handoff Pack</button>
-      <button type="button" data-screen="templates">Templates</button>
       <button type="button" data-screen="board">Work board</button>
       <button type="button" data-screen="evidence">Evidence and handoff</button>
       <button type="button" data-screen="approval">Human approval queue</button>
@@ -234,7 +233,7 @@
         </p>
         <div class="action-grid">
           <form id="outcome-create-form" class="card" novalidate>
-            <h3>Create outcome template</h3>
+            <h3>Create Outcome Review</h3>
             <label
               >Human actor <input name="actor" value="human:owner" required
             /></label>
@@ -254,7 +253,7 @@
               >Shape brief ID
               <input name="shapeBriefId" placeholder="shape-m2b" required
             /></label>
-            <button type="submit">Create local outcome template</button>
+            <button type="submit">Create local Outcome Review</button>
           </form>
           <form id="outcome-record-form" class="card" novalidate>
             <h3>Record outcome result</h3>
@@ -329,62 +328,6 @@
           <select id="handoff-pack-project" class="project-choice"></select>
         </label>
         <pre id="handoff-pack-preview" class="vision-preview"></pre>
-      </section>
-
-      <section
-        id="templates-screen"
-        class="screen"
-        hidden
-        aria-labelledby="templates-heading"
-      >
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Local draft starters</p>
-            <h2 id="templates-heading">Templates</h2>
-          </div>
-        </div>
-        <p class="boundary">
-          A template creates only a local draft. It does not supply evidence and
-          cannot approve a Compass, Shape, decision, or launch-readiness record.
-          The named human owner must add real evidence before any later
-          approval.
-        </p>
-        <form id="template-form" class="form-grid" novalidate>
-          <label>
-            Human ledger actor
-            <input name="actor" value="human:owner" required />
-          </label>
-          <label>
-            Project
-            <select name="projectId" class="project-choice" required></select>
-          </label>
-          <label>
-            Template
-            <select name="templateKind">
-              <option value="npm-package">npm package</option>
-              <option value="assay-rule-policy-change">
-                Assay rule or policy change
-              </option>
-              <option value="protocol-standards-integration">
-                Protocol or standards integration
-              </option>
-              <option value="release-preparation-milestone">
-                Release-preparation milestone
-              </option>
-            </select>
-          </label>
-          <label>
-            Draft ID
-            <input
-              name="id"
-              placeholder="template-draft-1"
-              required
-              pattern="[a-z0-9-]+"
-            />
-          </label>
-          <button type="submit">Create local draft</button>
-        </form>
-        <div id="template-list" class="card-list" aria-live="polite"></div>
       </section>
 
       <section

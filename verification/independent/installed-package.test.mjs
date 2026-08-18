@@ -974,7 +974,7 @@ test("installed tarball records bounded Shape, readiness, and outcome records wi
         "--actor",
         "human:owner",
       ],
-      "create outcome template",
+      "create Outcome Review",
     );
     writeFileSync(
       outcomeInput,
@@ -1065,36 +1065,6 @@ test("installed tarball audits local records and verifies a redacted Handoff Pac
       ],
       "create second M2C project",
     );
-    assertFailure(
-      cli(installation, [
-        "template",
-        "create",
-        "m2c",
-        "npm-package",
-        "template-denied",
-        "--root",
-        root,
-        "--actor",
-        "skeptic-agent:critic",
-      ]),
-      "deny Skeptic template draft creation",
-    );
-    const template = cliJson(
-      installation,
-      [
-        "template",
-        "create",
-        "m2c",
-        "release-preparation-milestone",
-        "template-1",
-        "--root",
-        root,
-        "--actor",
-        "human:owner",
-      ],
-      "create M2C local template draft",
-    );
-    assert.equal(template.templateDraft.status, "draft");
     const audit = cliJson(
       installation,
       ["audit", "m2c", "--root", root],

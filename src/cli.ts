@@ -18,7 +18,6 @@ import type {
   OutcomeDecision,
   ShapeBriefInput,
   TestVerdict,
-  TemplateKind,
 } from "./domain/model.js";
 
 const help = readFileSync(new URL("./cli-help.md", import.meta.url), "utf8");
@@ -231,14 +230,6 @@ const isJudgeVerdict = (value: string): value is JudgeVerdict =>
   judgeVerdicts.some((item) => item === value);
 const isGateDecision = (value: string): value is GateDecision =>
   gateDecisions.some((item) => item === value);
-
-const isTemplateKind = (value: string): value is TemplateKind =>
-  [
-    "npm-package",
-    "assay-rule-policy-change",
-    "protocol-standards-integration",
-    "release-preparation-milestone",
-  ].some((item) => item === value);
 
 const emit = (value: unknown): void => {
   process.stdout.write(`${canonicalJson(value)}\n`);
@@ -579,21 +570,6 @@ const main = (): number => {
         ),
       };
     });
-    return 0;
-  }
-  if (command === "template" && subcommand === "create") {
-    const templateKind = requireArgument(arguments_, 1, "Template kind");
-    if (!isTemplateKind(templateKind)) {
-      throw new Error("Template kind is invalid.");
-    }
-    withStore(parsed.root, (store) => ({
-      templateDraft: store.createTemplateDraft(
-        requireActor(parsed.actor),
-        requireArgument(arguments_, 2, "Template draft id"),
-        requireArgument(arguments_, 0, "Project id"),
-        templateKind,
-      ),
-    }));
     return 0;
   }
   if (command === "audit") {

@@ -14,7 +14,7 @@ Human creates mandate
 M0 keeps all state under `.workstream/`. M1 adds an optional loopback-only
 local browser server. M2A adds Compass: evidence-backed local product direction
 before a delivery milestone. M2B adds Shape and Launch Readiness: a bounded
-proposal, local readiness evidence, and an outcome-review template. M2C adds a
+proposal, local readiness evidence, and an Outcome Review record. M2C adds a
 deterministic Decision Audit and redacted Handoff Pack for local review. It does not
 need an account, a network connection, or a hosted service. Its governing limit is:
 
@@ -127,11 +127,9 @@ Handoff Pack exports a project-level `handoff.json` and `handoff.md` that bind
 to the exact event-chain hash and a canonical pack SHA-256. The pack includes
 current local records, audit findings, and redacted evidence hashes and metadata
 only—never raw evidence bytes. It is suitable for manual attachment to another
-system, but Workstream makes no remote write. Built-in templates for npm
-packages, Assay changes, protocol or standards integrations, and release
-preparation create human-owned drafts only. See [Decision Audit and Handoff Pack](docs/decision-audit-handoff.md).
+system, but Workstream makes no remote write. See [Decision Audit and Handoff Pack](docs/decision-audit-handoff.md).
 
-## M0, M1, M2A, and M2B commands
+## Local commands
 
 | Command           | Purpose                                                |
 | ----------------- | ------------------------------------------------------ |
@@ -146,7 +144,6 @@ preparation create human-owned drafts only. See [Decision Audit and Handoff Pack
 | `handoff export`  | Write a redacted project Handoff Pack.                 |
 | `handoff verify`  | Check a pack against its current local event chain.    |
 | `audit`           | Read deterministic Decision Audit findings.            |
-| `template create` | Create a human-owned local draft from a built-in form. |
 | `test record`     | Record an Independent Tester result.                   |
 | `judge record`    | Record an LLM Judge result.                            |
 | `gate decide`     | Let a human accept, reject, or stop work.              |

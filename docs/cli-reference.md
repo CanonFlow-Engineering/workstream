@@ -20,7 +20,7 @@ the SHA-256 from an attached evidence object.
 Use `verify`, `work show`, `work queue`, `work blocked`, and `activity` to
 inspect local state. Use `export` and `import` to move a verified bundle.
 
-## Decision Audit, Handoff Pack, and templates
+## Decision Audit and Handoff Pack
 
 Use `audit <project-id>` to read deterministic `WSA-A01` through `WSA-A10`
 findings from the current local project projection. It does not append an event
@@ -32,11 +32,6 @@ Markdown pack for manual attachment elsewhere. The pack includes its own
 SHA-256 and the current event-chain hash; evidence bytes are excluded. Use
 `handoff verify <project-id> <handoff-json>` to reject a changed pack or one
 that no longer binds to the current local ledger.
-
-Use `template create` with one of the four listed template kinds to create a
-human-owned local draft. Templates contain prompts, not evidence, and have no
-approval transition. They cannot approve a Compass, Shape, decision, or launch
-record.
 
 ## Compass commands
 

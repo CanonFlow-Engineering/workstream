@@ -14,7 +14,7 @@ severity, a local subject identifier, a cause, and a next local action.
 - `WSA-A02` is a Blocker when an approved Shape uses an expired, invalidated, or missing assumption.
 - `WSA-A03` is Attention when a selected idea has expired.
 - `WSA-A04` is Attention when a Launch Readiness record is not locally authorized.
-- `WSA-A05` is Attention when authorized Launch Readiness has no Outcome Review template.
+- `WSA-A05` is Attention when authorized Launch Readiness has no Outcome Review record.
 - `WSA-A06` is Information when a decision has been superseded and is not current direction.
 - `WSA-A07` is Attention when work awaits a human gate.
 - `WSA-A08` is a Blocker when a human gate lacks passing Tester or Judge evidence.
@@ -40,11 +40,3 @@ Evidence bytes are never copied into a Handoff Pack. A human may attach the
 pack manually to a GitHub issue or pull request, but M2C makes no GitHub read
 or write. `workstream handoff verify` rejects a modified pack or a pack that
 does not bind to the current local event chain.
-
-## Draft templates
-
-The built-in `npm-package`, `assay-rule-policy-change`,
-`protocol-standards-integration`, and `release-preparation-milestone` templates
-create only human-owned local drafts. Their prompt text makes missing evidence
-visible. A template cannot approve a Compass, Shape, decision, or launch
-record, and it cannot create an external effect.

@@ -236,23 +236,6 @@ export interface AuditFinding {
   readonly nextLocalAction: string;
 }
 
-export type TemplateKind =
-  | "npm-package"
-  | "assay-rule-policy-change"
-  | "protocol-standards-integration"
-  | "release-preparation-milestone";
-
-export interface TemplateDraft {
-  readonly id: string;
-  readonly projectId: string;
-  readonly templateKind: TemplateKind;
-  readonly owner: string;
-  readonly title: string;
-  readonly fields: Readonly<Record<string, string>>;
-  readonly status: "draft";
-  readonly createdAt: string;
-}
-
 export interface HandoffPack {
   readonly schemaVersion: "workstream-handoff/0.1";
   readonly project: Project;
@@ -267,7 +250,6 @@ export interface HandoffPack {
   readonly shapeBriefs: readonly ShapeBrief[];
   readonly launchReadiness: readonly LaunchReadiness[];
   readonly outcomeReviews: readonly OutcomeReview[];
-  readonly templateDrafts: readonly TemplateDraft[];
   readonly openWorkGates: readonly WorkItem[];
   readonly auditFindings: readonly AuditFinding[];
   readonly evidence: readonly EvidenceReference[];
@@ -284,7 +266,6 @@ export interface CompassSnapshot {
   readonly shapeBriefs: readonly ShapeBrief[];
   readonly launchReadiness: readonly LaunchReadiness[];
   readonly outcomeReviews: readonly OutcomeReview[];
-  readonly templateDrafts: readonly TemplateDraft[];
 }
 
 export interface CompassDraftInput {

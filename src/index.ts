@@ -39,8 +39,6 @@ export type {
   ShapeBriefInput,
   ShapeBriefStatus,
   TestVerdict,
-  TemplateDraft,
-  TemplateKind,
   TradeoffCard,
   TradeoffDecision,
   VerificationReport,

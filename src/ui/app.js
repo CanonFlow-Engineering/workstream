@@ -6,7 +6,6 @@ const screens = [
   "outcome",
   "audit",
   "handoff-pack",
-  "templates",
   "board",
   "evidence",
   "approval",
@@ -32,7 +31,6 @@ let state = {
     milestones: [],
     outcomeReviews: [],
     shapeBriefs: [],
-    templateDrafts: [],
     tradeoffs: [],
   },
   projects: [],
@@ -291,34 +289,6 @@ const renderM2B = () => {
   );
 };
 
-const renderM2C = () => {
-  const container = $("#template-list");
-  clear(container);
-  const drafts = state.compass.templateDrafts || [];
-  if (drafts.length === 0) {
-    addEmpty(container, "No local template drafts yet.");
-    return;
-  }
-  for (const draft of drafts) {
-    const card = element("article", "", "card");
-    card.append(element("h3", draft.title));
-    card.append(
-      element(
-        "p",
-        `${draft.id} · ${draft.templateKind} · ${draft.status} · owner: ${draft.owner}`,
-      ),
-    );
-    card.append(
-      element(
-        "p",
-        "Draft only. Add human-owned evidence before a separate local approval.",
-        "boundary",
-      ),
-    );
-    container.append(card);
-  }
-};
-
 const selectedProjectId = (selector) =>
   $(selector).value || state.projects[0]?.id;
 
@@ -548,7 +518,6 @@ const render = () => {
   renderProjects();
   renderCompass();
   renderM2B();
-  renderM2C();
   renderNextHumanDecision();
   renderBoard();
   renderQueue();
@@ -688,11 +657,6 @@ $("#outcome-record-form").addEventListener("submit", (event) => {
   } catch {
     notice("Outcome review JSON is invalid.", "error");
   }
-});
-$("#template-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  mutate("/api/templates", formData(event.currentTarget));
-  event.currentTarget.reset();
 });
 $("#work-form").addEventListener("submit", (event) => {
   event.preventDefault();

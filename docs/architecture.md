@@ -97,8 +97,3 @@ result, audit findings, and only evidence hashes and byte metadata. Its
 Verification recomputes that value and rejects a pack whose event-chain hash
 does not equal the current local ledger. Raw evidence bytes remain only in the
 content-addressed local evidence store and portable bundle export.
-
-Template drafts are separate immutable ledger events and SQLite projections.
-They contain fixed local prompt text and `draft` status only. There is no API or
-transition that treats a template as Compass, Shape, decision, or launch
-approval.
