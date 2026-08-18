@@ -1935,9 +1935,15 @@ export class WorkstreamStore {
     if (sha256(canonicalJson(core)) !== declaredHash) {
       throw new Error("Handoff Pack SHA-256 does not match its content.");
     }
+    const packedProject = parsed.project;
+    if (!isRecord(packedProject) || packedProject.id !== projectId) {
+      throw new Error("Handoff Pack does not bind to the requested project.");
+    }
     const current = this.handoffPack(projectId);
-    if (current.eventChainSha256 !== parsed.eventChainSha256) {
-      throw new Error("Handoff Pack does not bind to the current event chain.");
+    if (current.packSha256 !== declaredHash) {
+      throw new Error(
+        "Handoff Pack does not bind to the current local project projection.",
+      );
     }
     return current;
   }

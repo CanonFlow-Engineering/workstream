@@ -1323,6 +1323,12 @@ test("audits local decision gaps deterministically and binds a redacted Handoff 
       /requires a human actor/,
     );
     assert.equal(store.templateDrafts("audit").length, 1);
+    store.createProject(
+      human,
+      "audit-b",
+      "Audit B",
+      "A distinct local project.",
+    );
 
     const handoffDirectory = join(root, "handoff");
     const pack = store.exportHandoff("audit", handoffDirectory);
@@ -1347,6 +1353,14 @@ test("audits local decision gaps deterministically and binds a redacted Handoff 
       store.verifyHandoffPack("audit", join(handoffDirectory, "handoff.json"))
         .packSha256,
       packSha256,
+    );
+    assert.throws(
+      () =>
+        store.verifyHandoffPack(
+          "audit-b",
+          join(handoffDirectory, "handoff.json"),
+        ),
+      /requested project/,
     );
     writeFileSync(join(handoffDirectory, "handoff.json"), "{}");
     assert.throws(

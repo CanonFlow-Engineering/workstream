@@ -1050,6 +1050,21 @@ test("installed tarball audits local records and verifies a redacted Handoff Pac
       ],
       "attach M2C evidence",
     );
+    cliJson(
+      installation,
+      [
+        "project",
+        "create",
+        "m2c-b",
+        "M2C second project",
+        "Independent project-binding probe",
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "create second M2C project",
+    );
     assertFailure(
       cli(installation, [
         "template",
@@ -1109,6 +1124,17 @@ test("installed tarball audits local records and verifies a redacted Handoff Pac
         root,
       ]),
       "verify redacted M2C Handoff Pack",
+    );
+    assertFailure(
+      cli(installation, [
+        "handoff",
+        "verify",
+        "m2c-b",
+        handoffJson,
+        "--root",
+        root,
+      ]),
+      "reject M2C Handoff Pack for a different project",
     );
     writeFileSync(handoffJson, "{}\n");
     assertFailure(
