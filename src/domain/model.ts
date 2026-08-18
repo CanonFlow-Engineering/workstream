@@ -226,6 +226,36 @@ export interface OutcomeReview {
   readonly recordedAt: string | null;
 }
 
+export type AuditSeverity = "Blocker" | "Attention" | "Information";
+
+export interface AuditFinding {
+  readonly ruleId: string;
+  readonly severity: AuditSeverity;
+  readonly subjectId: string;
+  readonly cause: string;
+  readonly nextLocalAction: string;
+}
+
+export interface HandoffPack {
+  readonly schemaVersion: "workstream-handoff/0.1";
+  readonly project: Project;
+  readonly eventChainSha256: string;
+  readonly ledgerVerification: VerificationReport;
+  readonly compass: CompassVersion | null;
+  readonly ideas: readonly Idea[];
+  readonly assumptions: readonly Assumption[];
+  readonly tradeoffs: readonly TradeoffCard[];
+  readonly decisions: readonly Decision[];
+  readonly milestones: readonly MilestoneContract[];
+  readonly shapeBriefs: readonly ShapeBrief[];
+  readonly launchReadiness: readonly LaunchReadiness[];
+  readonly outcomeReviews: readonly OutcomeReview[];
+  readonly openWorkGates: readonly WorkItem[];
+  readonly auditFindings: readonly AuditFinding[];
+  readonly evidence: readonly EvidenceReference[];
+  readonly packSha256: string;
+}
+
 export interface CompassSnapshot {
   readonly compasses: readonly CompassVersion[];
   readonly ideas: readonly Idea[];

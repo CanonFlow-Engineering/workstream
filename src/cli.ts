@@ -572,6 +572,32 @@ const main = (): number => {
     });
     return 0;
   }
+  if (command === "audit") {
+    withStore(parsed.root, (store) => ({
+      findings: store.audit(
+        requireArgument(parsed.positional, 1, "Project id"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "handoff" && subcommand === "export") {
+    withStore(parsed.root, (store) => ({
+      handoff: store.exportHandoff(
+        requireArgument(arguments_, 0, "Project id"),
+        requireArgument(arguments_, 1, "Handoff directory"),
+      ),
+    }));
+    return 0;
+  }
+  if (command === "handoff" && subcommand === "verify") {
+    withStore(parsed.root, (store) => ({
+      handoff: store.verifyHandoffPack(
+        requireArgument(arguments_, 0, "Project id"),
+        requireArgument(arguments_, 1, "Handoff JSON file"),
+      ),
+    }));
+    return 0;
+  }
   if (command === "project" && subcommand === "create") {
     withStore(parsed.root, (store) => {
       const id = requireArgument(arguments_, 0, "Project id");

@@ -31,3 +31,8 @@ approval, non-human readiness denial, required readiness fields, preservation
 of the original expected measure, and verified export/import replay. The tester
 must confirm that local readiness authorization reports only local ledger state
 and cannot initiate an external effect.
+
+For M2C, the tester reads deterministic audit findings and exports a redacted
+Handoff Pack. It checks stable audit ordering, project and event-chain binding,
+pack SHA-256 verification, stale-projection rejection, and the absence of raw
+evidence bytes. The tester does not invoke a remote action.

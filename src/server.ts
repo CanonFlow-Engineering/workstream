@@ -339,6 +339,26 @@ const handleApi = async (
     );
     return true;
   }
+  const auditProjectId = decodedProjectPath(pathname, "/audit");
+  if (auditProjectId !== null && method === "GET") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({ findings: store.audit(auditProjectId) })),
+    );
+    return true;
+  }
+  const handoffProjectId = decodedProjectPath(pathname, "/handoff");
+  if (handoffProjectId !== null && method === "GET") {
+    respondJson(
+      response,
+      200,
+      withStore(root, (store) => ({
+        handoff: store.handoffPack(handoffProjectId),
+      })),
+    );
+    return true;
+  }
   const detailId = decodedWorkPath(pathname, "");
   if (detailId !== null && method === "GET") {
     respondJson(

@@ -13,7 +13,7 @@
   <body>
     <header class="site-header">
       <div>
-        <p class="eyebrow">@canonflow/workstream · M2B</p>
+        <p class="eyebrow">@canonflow/workstream · M2C</p>
         <h1>Local work and shaping board</h1>
         <p>
           A local browser view of the SQLite ledger. It does not synchronize
@@ -47,6 +47,8 @@
       <button type="button" data-screen="shape">Shape</button>
       <button type="button" data-screen="launch">Launch Readiness</button>
       <button type="button" data-screen="outcome">Outcome Review</button>
+      <button type="button" data-screen="audit">Decision Audit</button>
+      <button type="button" data-screen="handoff-pack">Handoff Pack</button>
       <button type="button" data-screen="board">Work board</button>
       <button type="button" data-screen="evidence">Evidence and handoff</button>
       <button type="button" data-screen="approval">Human approval queue</button>
@@ -231,7 +233,7 @@
         </p>
         <div class="action-grid">
           <form id="outcome-create-form" class="card" novalidate>
-            <h3>Create outcome template</h3>
+            <h3>Create Outcome Review</h3>
             <label
               >Human actor <input name="actor" value="human:owner" required
             /></label>
@@ -251,7 +253,7 @@
               >Shape brief ID
               <input name="shapeBriefId" placeholder="shape-m2b" required
             /></label>
-            <button type="submit">Create local outcome template</button>
+            <button type="submit">Create local Outcome Review</button>
           </form>
           <form id="outcome-record-form" class="card" novalidate>
             <h3>Record outcome result</h3>
@@ -271,6 +273,61 @@
           </form>
         </div>
         <div id="outcome-list" class="card-list" aria-live="polite"></div>
+      </section>
+
+      <section
+        id="audit-screen"
+        class="screen"
+        hidden
+        aria-labelledby="audit-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Read-only local review</p>
+            <h2 id="audit-heading">Decision Audit</h2>
+          </div>
+          <button id="audit-refresh" class="secondary" type="button">
+            Refresh local audit
+          </button>
+        </div>
+        <p class="boundary">
+          This deterministic audit reads the local append-only ledger. Findings
+          name a stable rule, severity, subject, cause, and next local action.
+          It cannot approve, launch, publish, deploy, or create a remote effect.
+        </p>
+        <label>
+          Project
+          <select id="audit-project" class="project-choice"></select>
+        </label>
+        <div id="audit-findings" class="card-list" aria-live="polite"></div>
+      </section>
+
+      <section
+        id="handoff-pack-screen"
+        class="screen"
+        hidden
+        aria-labelledby="handoff-pack-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Manual attachment projection</p>
+            <h2 id="handoff-pack-heading">Handoff Pack</h2>
+          </div>
+          <button id="handoff-pack-refresh" class="secondary" type="button">
+            Refresh local pack
+          </button>
+        </div>
+        <p class="boundary">
+          The local pack binds its SHA-256 to the current event-chain hash. It
+          shows redacted evidence hashes and metadata only, never evidence
+          bytes. A human may attach it manually to another system; this browser
+          does not write to GitHub or any remote service.
+        </p>
+        <label>
+          Project
+          <select id="handoff-pack-project" class="project-choice"></select>
+        </label>
+        <pre id="handoff-pack-preview" class="vision-preview"></pre>
       </section>
 
       <section
@@ -587,7 +644,7 @@
 
     <footer>
       <p>
-        Local-first M2B. GitHub integration remains dry-run only. The browser
+        Local-first M2C. GitHub integration remains dry-run only. The browser
         never receives a credential, actor IDs are not authentication, and the
         server binds to <code>127.0.0.1</code>.
       </p>

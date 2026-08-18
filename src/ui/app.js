@@ -4,6 +4,8 @@ const screens = [
   "shape",
   "launch",
   "outcome",
+  "audit",
+  "handoff-pack",
   "board",
   "evidence",
   "approval",
@@ -74,6 +76,8 @@ const showScreen = (screen) => {
       .setAttribute("aria-current", name === screen ? "page" : "false");
   }
   if (screen === "evidence") renderDetail();
+  if (screen === "audit") void renderAudit();
+  if (screen === "handoff-pack") void renderHandoffPack();
 };
 
 const clear = (node) => node.replaceChildren();
@@ -285,6 +289,70 @@ const renderM2B = () => {
   );
 };
 
+const selectedProjectId = (selector) =>
+  $(selector).value || state.projects[0]?.id;
+
+const renderAudit = async () => {
+  const container = $("#audit-findings");
+  clear(container);
+  const projectId = selectedProjectId("#audit-project");
+  if (!projectId) {
+    addEmpty(container, "Create a local project before requesting an audit.");
+    return;
+  }
+  try {
+    const result = await request(
+      `/api/projects/${encodeURIComponent(projectId)}/audit`,
+    );
+    if (result.findings.length === 0) {
+      addEmpty(
+        container,
+        "No Decision Audit findings in the observed local scope.",
+      );
+      return;
+    }
+    for (const finding of result.findings) {
+      const card = element("article", "", "card");
+      card.append(element("h3", `${finding.severity} · ${finding.ruleId}`));
+      card.append(element("p", `Subject: ${finding.subjectId}`));
+      card.append(element("p", finding.cause));
+      card.append(
+        element(
+          "p",
+          `Next local action: ${finding.nextLocalAction}`,
+          "boundary",
+        ),
+      );
+      container.append(card);
+    }
+  } catch (error) {
+    notice(error.message, "error");
+  }
+};
+
+const renderHandoffPack = async () => {
+  const preview = $("#handoff-pack-preview");
+  preview.textContent = "";
+  const projectId = selectedProjectId("#handoff-pack-project");
+  if (!projectId) return;
+  try {
+    const result = await request(
+      `/api/projects/${encodeURIComponent(projectId)}/handoff`,
+    );
+    const pack = result.handoff;
+    preview.textContent = [
+      `Pack SHA-256: ${pack.packSha256}`,
+      `Event-chain SHA-256: ${pack.eventChainSha256}`,
+      `Source ledger valid: ${pack.ledgerVerification.valid}`,
+      `Audit findings: ${pack.auditFindings.length}`,
+      `Redacted evidence references: ${pack.evidence.length}`,
+      "Evidence bytes are intentionally omitted.",
+    ].join("\n");
+  } catch (error) {
+    notice(error.message, "error");
+  }
+};
+
 const renderVision = async () => {
   const projectId = state.projects[0]?.id;
   const preview = $("#vision-preview");
@@ -486,6 +554,16 @@ $("#initialize").addEventListener("click", () =>
   mutate("/api/initialize", { actor: "human:owner" }),
 );
 $("#refresh").addEventListener("click", refresh);
+$("#audit-refresh").addEventListener("click", () => void renderAudit());
+$("#handoff-pack-refresh").addEventListener(
+  "click",
+  () => void renderHandoffPack(),
+);
+$("#audit-project").addEventListener("change", () => void renderAudit());
+$("#handoff-pack-project").addEventListener(
+  "change",
+  () => void renderHandoffPack(),
+);
 $("#detail-work").addEventListener("change", (event) => {
   selectedWorkId = event.target.value;
   renderDetail();

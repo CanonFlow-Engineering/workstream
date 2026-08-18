@@ -20,6 +20,19 @@ the SHA-256 from an attached evidence object.
 Use `verify`, `work show`, `work queue`, `work blocked`, and `activity` to
 inspect local state. Use `export` and `import` to move a verified bundle.
 
+## Decision Audit and Handoff Pack
+
+Use `audit <project-id>` to read deterministic `WSA-A01` through `WSA-A10`
+findings from the current local project projection. It does not append an event
+or change a record. Each result identifies a severity, local subject, cause,
+and next local action.
+
+Use `handoff export <project-id> <directory>` to create a redacted JSON and
+Markdown pack for manual attachment elsewhere. The pack includes its own
+SHA-256 and the current event-chain hash; evidence bytes are excluded. Use
+`handoff verify <project-id> <handoff-json>` to reject a changed pack or one
+that no longer binds to the current local ledger.
+
 ## Compass commands
 
 Use `compass evidence` to attach a human-provided local source to a project

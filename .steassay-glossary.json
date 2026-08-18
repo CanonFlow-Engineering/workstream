@@ -16,6 +16,7 @@
     "M1": "Milestone one.",
     "M2A": "Milestone two, Compass local-first slice.",
     "M2B": "Milestone two, Shape and Launch Readiness slice.",
+    "M2C": "Milestone two, Decision Audit and Handoff Pack slice.",
     "NDJSON": "Newline-delimited JSON.",
     "PASS": "A recorded passing test outcome.",
     "README": "Repository readme document.",
@@ -24,6 +25,17 @@
     "SQLITE": "Structured Query Language embedded database engine.",
     "UTF-8": "Unicode Transformation Format 8-bit encoding.",
     "UI": "User interface.",
-    "VISION": "Generated Compass vision projection."
+    "VISION": "Generated Compass vision projection.",
+    "WSA": "Workstream audit rule identifier prefix.",
+    "WSA-A01": "Audit rule for missing approved Compass direction.",
+    "WSA-A02": "Audit rule for expired or invalid Shape assumptions.",
+    "WSA-A03": "Audit rule for expired selected ideas.",
+    "WSA-A04": "Audit rule for unauthorized Launch Readiness.",
+    "WSA-A05": "Audit rule for authorized readiness without Outcome Review.",
+    "WSA-A06": "Audit rule for superseded decisions.",
+    "WSA-A07": "Audit rule for work awaiting a human gate.",
+    "WSA-A08": "Audit rule for missing Tester or Judge gate evidence.",
+    "WSA-A09": "Audit rule for absent or invalid evidence references.",
+    "WSA-A10": "Audit rule for a record that conflicts with a Compass non-goal."
   }
 }

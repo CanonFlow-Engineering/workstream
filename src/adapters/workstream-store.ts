@@ -21,6 +21,7 @@ import type {
   AssumptionConfidence,
   AssumptionInput,
   AssumptionResult,
+  AuditFinding,
   CompassDraftInput,
   CompassSnapshot,
   CompassStatement,
@@ -31,6 +32,7 @@ import type {
   EvidenceReference,
   ExportManifest,
   GateDecision,
+  HandoffPack,
   Idea,
   IdeaInput,
   IdeaStatus,
@@ -1551,6 +1553,275 @@ export class WorkstreamStore {
     };
   }
 
+  audit(projectId: string): readonly AuditFinding[] {
+    this.requireProject(projectId);
+    const findings: AuditFinding[] = [];
+    const observedAt = this.clock();
+    const snapshot = this.compassSnapshot(projectId);
+    const compass = this.activeCompass(projectId);
+    const activeShapeOrLaunch =
+      snapshot.shapeBriefs.length > 0 || snapshot.launchReadiness.length > 0;
+    if (activeShapeOrLaunch && compass === null) {
+      findings.push({
+        cause:
+          "Shape or Launch Readiness data exists without an approved Compass.",
+        nextLocalAction:
+          "Have the named human owner approve a Compass version.",
+        ruleId: "WSA-A01",
+        severity: "Blocker",
+        subjectId: projectId,
+      });
+    }
+
+    const assumptions = new Map(
+      snapshot.assumptions.map((assumption) => [assumption.id, assumption]),
+    );
+    for (const shape of snapshot.shapeBriefs) {
+      if (shape.status !== "approved") {
+        continue;
+      }
+      for (const assumptionId of shape.assumptionIds) {
+        const assumption = assumptions.get(assumptionId);
+        if (
+          assumption === undefined ||
+          assumption.expired ||
+          assumption.result === "invalidated"
+        ) {
+          findings.push({
+            cause:
+              assumption === undefined
+                ? `Approved Shape references missing assumption ${assumptionId}.`
+                : `Approved Shape references an ${assumption.expired ? "expired" : "invalidated"} assumption ${assumptionId}.`,
+            nextLocalAction:
+              "Record current assumption evidence, then shape a replacement if the proposal changes.",
+            ruleId: "WSA-A02",
+            severity: "Blocker",
+            subjectId: shape.id,
+          });
+        }
+      }
+    }
+
+    for (const idea of snapshot.ideas) {
+      if (idea.status === "shaped" && idea.expiresAt < observedAt) {
+        findings.push({
+          cause: "A selected idea has expired.",
+          nextLocalAction:
+            "Review the idea with current evidence before relying on it.",
+          ruleId: "WSA-A03",
+          severity: "Attention",
+          subjectId: idea.id,
+        });
+      }
+    }
+
+    for (const readiness of snapshot.launchReadiness) {
+      if (readiness.status !== "authorized") {
+        findings.push({
+          cause:
+            "Launch Readiness is a draft and has no local human authorization.",
+          nextLocalAction:
+            "Have the named human owner authorize the record after inspecting its evidence.",
+          ruleId: "WSA-A04",
+          severity: "Attention",
+          subjectId: readiness.id,
+        });
+      } else if (
+        !snapshot.outcomeReviews.some(
+          (review) => review.shapeBriefId === readiness.shapeBriefId,
+        )
+      ) {
+        findings.push({
+          cause: "Authorized Launch Readiness has no Outcome Review record.",
+          nextLocalAction:
+            "Create a local Outcome Review that preserves the Shape success criteria.",
+          ruleId: "WSA-A05",
+          severity: "Attention",
+          subjectId: readiness.id,
+        });
+      }
+    }
+
+    for (const decision of snapshot.decisions) {
+      if (decision.supersededBy !== null) {
+        findings.push({
+          cause: `Decision is superseded by ${decision.supersededBy} and is not current direction.`,
+          nextLocalAction:
+            "Use the replacement decision in the current project review.",
+          ruleId: "WSA-A06",
+          severity: "Information",
+          subjectId: decision.id,
+        });
+      }
+    }
+
+    const projectWork = this.workItems().filter(
+      (work) => work.projectId === projectId,
+    );
+    for (const work of projectWork) {
+      if (work.status !== "awaiting-gate") {
+        continue;
+      }
+      findings.push({
+        cause: "Work is awaiting a human gate decision.",
+        nextLocalAction:
+          "The human owner can accept, reject, or stop this local work item.",
+        ruleId: "WSA-A07",
+        severity: "Attention",
+        subjectId: work.id,
+      });
+      const events = this.events();
+      const hasPassingTest = events.some(
+        (event) =>
+          event.type === "test.recorded" &&
+          event.payload.workId === work.id &&
+          event.payload.verdict === "PASS",
+      );
+      const hasPassingJudge = events.some(
+        (event) =>
+          event.type === "judge.recorded" &&
+          event.payload.workId === work.id &&
+          event.payload.verdict === "Pass",
+      );
+      if (!hasPassingTest || !hasPassingJudge) {
+        findings.push({
+          cause:
+            "A human gate is missing required passing Tester or Judge evidence.",
+          nextLocalAction:
+            "Record independent Tester PASS and LLM Judge Pass evidence before the human gate.",
+          ruleId: "WSA-A08",
+          severity: "Blocker",
+          subjectId: work.id,
+        });
+      }
+    }
+
+    const evidence = new Map(
+      this.evidenceReferences().map((reference) => [
+        reference.sha256,
+        reference,
+      ]),
+    );
+    const verification = this.verify();
+    for (const reference of this.referencedEvidence(projectId)) {
+      if (
+        !evidence.has(reference.hash) ||
+        verification.errors.some((error) => error.includes(reference.hash))
+      ) {
+        findings.push({
+          cause: `Evidence reference ${reference.hash} is absent or invalid.`,
+          nextLocalAction:
+            "Restore the original evidence bytes or record a new local record with valid evidence.",
+          ruleId: "WSA-A09",
+          severity: "Blocker",
+          subjectId: reference.subjectId,
+        });
+      }
+    }
+
+    if (compass !== null) {
+      for (const shape of snapshot.shapeBriefs) {
+        this.auditNonGoalConflict(findings, compass, shape.id, [
+          shape.solutionOutline,
+          shape.userJourney,
+          ...shape.scopeExpansionPaths,
+          ...shape.rabbitHoles,
+        ]);
+      }
+      for (const readiness of snapshot.launchReadiness) {
+        this.auditNonGoalConflict(findings, compass, readiness.id, [
+          readiness.changeNote,
+          readiness.rollbackProcedure,
+          ...readiness.knownLimits,
+          ...readiness.releaseChecklist,
+        ]);
+      }
+      for (const review of snapshot.outcomeReviews) {
+        this.auditNonGoalConflict(findings, compass, review.id, [
+          review.observedResult ?? "",
+          review.changedAssumption ?? "",
+        ]);
+      }
+    }
+
+    const severityOrder: Readonly<Record<AuditFinding["severity"], number>> = {
+      Attention: 1,
+      Blocker: 0,
+      Information: 2,
+    };
+    return findings.sort(
+      (left, right) =>
+        severityOrder[left.severity] - severityOrder[right.severity] ||
+        left.ruleId.localeCompare(right.ruleId) ||
+        left.subjectId.localeCompare(right.subjectId) ||
+        left.cause.localeCompare(right.cause),
+    );
+  }
+
+  handoffPack(projectId: string): HandoffPack {
+    const project = this.requireProject(projectId);
+    const snapshot = this.compassSnapshot(projectId);
+    const events = this.events();
+    const core: Omit<HandoffPack, "packSha256"> = {
+      assumptions: snapshot.assumptions,
+      auditFindings: this.audit(projectId),
+      compass: this.activeCompass(projectId),
+      decisions: snapshot.decisions,
+      eventChainSha256: events.at(-1)?.sha256 ?? zeroHash,
+      evidence: this.projectEvidenceReferences(projectId),
+      ideas: snapshot.ideas,
+      launchReadiness: snapshot.launchReadiness,
+      ledgerVerification: this.verify(),
+      milestones: snapshot.milestones,
+      openWorkGates: this.workItems().filter(
+        (work) =>
+          work.projectId === projectId && work.status === "awaiting-gate",
+      ),
+      outcomeReviews: snapshot.outcomeReviews,
+      project,
+      schemaVersion: "workstream-handoff/0.1",
+      shapeBriefs: snapshot.shapeBriefs,
+      tradeoffs: snapshot.tradeoffs,
+    };
+    return { ...core, packSha256: sha256(canonicalJson(core)) };
+  }
+
+  exportHandoff(projectId: string, destination: string): HandoffPack {
+    const target = resolve(destination);
+    const pack = this.handoffPack(projectId);
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, "handoff.json"), canonicalJson(pack));
+    writeFileSync(join(target, "handoff.md"), this.renderHandoff(pack), "utf8");
+    return pack;
+  }
+
+  verifyHandoffPack(projectId: string, source: string): HandoffPack {
+    const parsed: unknown = JSON.parse(readFileSync(resolve(source), "utf8"));
+    if (!isRecord(parsed)) {
+      throw new Error("Handoff Pack must be a JSON object.");
+    }
+    const declaredHash = parsed.packSha256;
+    if (typeof declaredHash !== "string" || !isSha256(declaredHash)) {
+      throw new Error("Handoff Pack has no valid pack SHA-256.");
+    }
+    const core = { ...parsed };
+    delete core.packSha256;
+    if (sha256(canonicalJson(core)) !== declaredHash) {
+      throw new Error("Handoff Pack SHA-256 does not match its content.");
+    }
+    const packedProject = parsed.project;
+    if (!isRecord(packedProject) || packedProject.id !== projectId) {
+      throw new Error("Handoff Pack does not bind to the requested project.");
+    }
+    const current = this.handoffPack(projectId);
+    if (current.packSha256 !== declaredHash) {
+      throw new Error(
+        "Handoff Pack does not bind to the current local project projection.",
+      );
+    }
+    return current;
+  }
+
   work(id: string): WorkItem | null {
     const row = this.database
       .prepare(
@@ -2053,6 +2324,167 @@ export class WorkstreamStore {
       throw new Error(`Outcome review ${id} does not exist.`);
     }
     return review;
+  }
+
+  private projectEvidenceReferences(
+    projectId: string,
+  ): readonly EvidenceReference[] {
+    return this.database
+      .prepare(
+        "SELECT DISTINCT evidence.sha256 AS sha256, evidence.bytes AS bytes FROM evidence LEFT JOIN project_evidence ON project_evidence.evidence_hash = evidence.sha256 LEFT JOIN work_items ON work_items.mandate_evidence_hash = evidence.sha256 OR work_items.id IN (SELECT work_id FROM work_evidence WHERE evidence_hash = evidence.sha256) WHERE project_evidence.project_id = ? OR work_items.project_id = ? ORDER BY sha256",
+      )
+      .all(projectId, projectId)
+      .map((row) => {
+        const hash = stringValue(row, "sha256");
+        return {
+          bytes: numberValue(row, "bytes"),
+          path: `evidence/sha256/${hash}`,
+          sha256: hash,
+        };
+      });
+  }
+
+  private referencedEvidence(
+    projectId: string,
+  ): readonly { readonly hash: string; readonly subjectId: string }[] {
+    const snapshot = this.compassSnapshot(projectId);
+    const references: { hash: string; subjectId: string }[] = [];
+    const add = (subjectId: string, hash: string | null): void => {
+      if (hash !== null) {
+        references.push({ hash, subjectId });
+      }
+    };
+    for (const compass of snapshot.compasses) {
+      add(compass.id, compass.sourceVisionEvidenceHash);
+      for (const statement of [...compass.principles, ...compass.nonGoals]) {
+        add(compass.id, statement.evidenceHash);
+      }
+    }
+    for (const idea of snapshot.ideas) add(idea.id, idea.evidenceHash);
+    for (const assumption of snapshot.assumptions) {
+      add(assumption.id, assumption.resultEvidenceHash);
+    }
+    for (const tradeoff of snapshot.tradeoffs)
+      add(tradeoff.id, tradeoff.evidenceHash);
+    for (const decision of snapshot.decisions)
+      add(decision.id, decision.evidenceHash);
+    for (const shape of snapshot.shapeBriefs) {
+      for (const hash of shape.evidenceHashes) add(shape.id, hash);
+    }
+    for (const readiness of snapshot.launchReadiness) {
+      add(readiness.id, readiness.candidateEvidenceHash);
+      for (const hash of readiness.verificationEvidenceHashes) {
+        add(readiness.id, hash);
+      }
+    }
+    for (const work of this.workItems()) {
+      if (work.projectId === projectId) add(work.id, work.mandateEvidenceHash);
+      if (work.projectId === projectId) {
+        for (const reference of this.workEvidence(work.id)) {
+          add(work.id, reference.sha256);
+        }
+      }
+    }
+    return references.sort(
+      (left, right) =>
+        left.hash.localeCompare(right.hash) ||
+        left.subjectId.localeCompare(right.subjectId),
+    );
+  }
+
+  private auditNonGoalConflict(
+    findings: AuditFinding[],
+    compass: CompassVersion,
+    subjectId: string,
+    texts: readonly string[],
+  ): void {
+    for (const nonGoal of compass.nonGoals) {
+      const prohibited = this.nonGoalSubject(nonGoal.text);
+      if (prohibited.length === 0) {
+        continue;
+      }
+      const conflict = texts.some((text) => {
+        const normalized = this.normalizedText(text);
+        return (
+          normalized.includes(prohibited) &&
+          !/^(do not|must not|no|never|without)\b/u.test(normalized)
+        );
+      });
+      if (conflict) {
+        findings.push({
+          cause: `Record text conflicts with Compass non-goal ${nonGoal.id}.`,
+          nextLocalAction:
+            "Revise the local record or supersede the Compass with evidence-backed human direction.",
+          ruleId: "WSA-A10",
+          severity: "Attention",
+          subjectId,
+        });
+      }
+    }
+  }
+
+  private normalizedText(value: string): string {
+    return value
+      .toLocaleLowerCase("en-US")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/\s+/gu, " ")
+      .trim();
+  }
+
+  private nonGoalSubject(value: string): string {
+    return this.normalizedText(value).replace(
+      /^(do not|must not|no|never|without)\s+/u,
+      "",
+    );
+  }
+
+  private renderHandoff(pack: HandoffPack): string {
+    const list = (items: readonly string[]): string =>
+      items.length === 0
+        ? "- None\n"
+        : `${items.map((item) => `- ${item}`).join("\n")}\n`;
+    return [
+      "<!-- workstream-handoff/0.1 -->",
+      "",
+      `# Handoff Pack: ${pack.project.name}`,
+      "",
+      `- Project ID: ${pack.project.id}`,
+      `- Event-chain SHA-256: ${pack.eventChainSha256}`,
+      `- Pack SHA-256: ${pack.packSha256}`,
+      `- Source ledger valid: ${pack.ledgerVerification.valid}`,
+      "",
+      "## Current Compass",
+      "",
+      pack.compass === null
+        ? "No approved Compass version."
+        : `Version ${pack.compass.version}: ${pack.compass.title}`,
+      "",
+      "## Open human gates",
+      "",
+      list(
+        pack.openWorkGates.map((work) => `${work.id}: ${work.title}`),
+      ).trimEnd(),
+      "",
+      "## Decision Audit",
+      "",
+      list(
+        pack.auditFindings.map(
+          (finding) =>
+            `${finding.severity} ${finding.ruleId} ${finding.subjectId}: ${finding.cause} Next: ${finding.nextLocalAction}`,
+        ),
+      ).trimEnd(),
+      "",
+      "## Redacted evidence references",
+      "",
+      "Evidence bytes are intentionally omitted. Attach this pack manually where needed.",
+      "",
+      list(
+        pack.evidence.map(
+          (reference) => `${reference.sha256} (${reference.bytes} bytes)`,
+        ),
+      ).trimEnd(),
+      "",
+    ].join("\n");
   }
 
   private nextCompassVersion(projectId: string): number {

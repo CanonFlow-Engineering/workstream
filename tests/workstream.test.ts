@@ -1135,3 +1135,296 @@ test("uses equivalent owner denials through the loopback Shape and readiness API
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("audits local decision gaps deterministically and binds a redacted Handoff Pack", () => {
+  withTemporaryDirectory((root) => {
+    const store = new WorkstreamStore(root, fixedClock());
+    store.initialize(human);
+    store.createProject(human, "audit", "Audit", "Audit projections.");
+    const evidence = store.attachProjectEvidence(
+      human,
+      "audit",
+      "research",
+      new TextEncoder().encode("Evidence bytes must stay local."),
+    );
+    const idea = store.createIdea(skeptic, "idea-1", "audit", {
+      affectedUser: "Human owner",
+      assumption: "A local audit is useful.",
+      costEstimate: "One bounded slice.",
+      evidenceHash: evidence.sha256,
+      expectedResult: "A current decision is visible.",
+      expiresAt: "2026-08-16T00:00:00.000Z",
+      problem: "Direction gaps are hidden.",
+      rejectionReason: "Reject without local evidence.",
+      risk: "Scope expansion.",
+    });
+    store.reviewIdea(human, idea.id, "shaped");
+    store.createAssumption(skeptic, "assumption-1", "audit", {
+      confidence: "medium",
+      expiresAt: "2026-08-16T00:00:00.000Z",
+      owner: "owner",
+      statement: "The owner will review local evidence.",
+      testMethod: "Inspect the local audit.",
+    });
+    const uncompassedShape = store.createShapeBrief(
+      architect,
+      "shape-uncompassed",
+      "audit",
+      shapeBriefInput(evidence.sha256),
+    );
+    assert.equal(uncompassedShape.status, "draft");
+    assert.equal(
+      store.audit("audit").some((finding) => finding.ruleId === "WSA-A01"),
+      true,
+    );
+
+    const compass = store.createCompass(human, "compass-v1", "audit", {
+      ...compassInput(evidence.sha256),
+      nonGoals: [
+        {
+          evidenceHash: evidence.sha256,
+          id: "no-remote-effects",
+          text: "Do not create remote effects.",
+        },
+      ],
+    });
+    store.approveCompass(human, compass.id);
+    const shape = store.createShapeBrief(
+      architect,
+      "shape-1",
+      "audit",
+      shapeBriefInput(evidence.sha256),
+    );
+    store.approveShapeBrief(human, shape.id);
+    const readiness = store.createLaunchReadiness(
+      architect,
+      "launch-1",
+      "audit",
+      {
+        ...launchReadinessInput(evidence.sha256),
+        changeNote: "Create remote effects for this local proposal.",
+      },
+    );
+    const authorizedReadiness = store.createLaunchReadiness(
+      architect,
+      "launch-authorized",
+      "audit",
+      launchReadinessInput(evidence.sha256),
+    );
+    store.authorizeLaunchReadiness(human, authorizedReadiness.id);
+    const firstDecision = store.recordDecision(
+      human,
+      "decision-1",
+      "audit",
+      "Remote effects",
+      "defer",
+      "Keep external effects out of scope.",
+      evidence.sha256,
+    );
+    store.recordDecision(
+      human,
+      "decision-2",
+      "audit",
+      "Remote effects",
+      "reject",
+      "The current Compass keeps work local.",
+      evidence.sha256,
+      firstDecision.id,
+    );
+    const findings = store.audit("audit");
+    assert.deepEqual(
+      findings.map((finding) => finding.ruleId),
+      ["WSA-A02", "WSA-A03", "WSA-A04", "WSA-A05", "WSA-A10", "WSA-A06"],
+    );
+    assert.equal(
+      findings.some((finding) => finding.subjectId === readiness.id),
+      true,
+    );
+    const secondFindings = store.audit("audit");
+    assert.deepEqual(secondFindings, findings);
+    const cliAudit = spawnSync(
+      "node_modules/node/bin/node",
+      ["--import", "tsx", "src/cli.ts", "audit", "audit", "--root", root],
+      { encoding: "utf8" },
+    );
+    assert.equal(cliAudit.status, 0);
+    const cliAuditResult: unknown = JSON.parse(cliAudit.stdout);
+    assert.equal(isRecord(cliAuditResult), true);
+    if (!isRecord(cliAuditResult) || !Array.isArray(cliAuditResult.findings)) {
+      throw new Error("Expected CLI audit findings.");
+    }
+    assert.deepEqual(cliAuditResult.findings, findings);
+
+    store.createWork(human, "work-gate", "audit", "Await local gate.");
+    store.issueMandate(
+      human,
+      "work-gate",
+      new TextEncoder().encode("# Mandate\n\nLocal audit.\n"),
+    );
+    store.claimWork(architect, "work-gate");
+    const testEvidence = store.attachEvidence(
+      tester,
+      "work-gate",
+      "test",
+      new TextEncoder().encode("Passing Tester evidence."),
+    );
+    store.recordTest(tester, "work-gate", "PASS", testEvidence.sha256);
+    const judgeEvidence = store.attachEvidence(
+      judge,
+      "work-gate",
+      "judge",
+      new TextEncoder().encode("Passing Judge evidence."),
+    );
+    store.recordJudge(judge, "work-gate", "Pass", judgeEvidence.sha256);
+    assert.equal(
+      store.audit("audit").some((finding) => finding.ruleId === "WSA-A07"),
+      true,
+    );
+    store.createWork(human, "work-incomplete", "audit", "Incomplete gate.");
+    store.database
+      .prepare("UPDATE work_items SET status = ? WHERE id = ?")
+      .run("awaiting-gate", "work-incomplete");
+    assert.equal(
+      store.audit("audit").some((finding) => finding.ruleId === "WSA-A08"),
+      true,
+    );
+    store.database
+      .prepare("UPDATE work_items SET status = ? WHERE id = ?")
+      .run("ready", "work-incomplete");
+    const evidencePath = join(
+      root,
+      ".workstream",
+      "evidence",
+      "sha256",
+      evidence.sha256,
+    );
+    writeFileSync(evidencePath, "changed");
+    assert.equal(
+      store.audit("audit").some((finding) => finding.ruleId === "WSA-A09"),
+      true,
+    );
+    writeFileSync(evidencePath, "Evidence bytes must stay local.");
+
+    store.createProject(
+      human,
+      "audit-b",
+      "Audit B",
+      "A distinct local project.",
+    );
+
+    const handoffDirectory = join(root, "handoff");
+    const pack = store.exportHandoff("audit", handoffDirectory);
+    const { packSha256, ...core } = pack;
+    assert.equal(
+      packSha256,
+      independentlySha256(independentlyCanonicalJson(core)),
+    );
+    assert.equal(
+      readFileSync(join(handoffDirectory, "handoff.md"), "utf8").includes(
+        "Evidence bytes are intentionally omitted.",
+      ),
+      true,
+    );
+    assert.equal(
+      readFileSync(join(handoffDirectory, "handoff.json"), "utf8").includes(
+        "Evidence bytes must stay local.",
+      ),
+      false,
+    );
+    assert.equal(
+      store.verifyHandoffPack("audit", join(handoffDirectory, "handoff.json"))
+        .packSha256,
+      packSha256,
+    );
+    assert.throws(
+      () =>
+        store.verifyHandoffPack(
+          "audit-b",
+          join(handoffDirectory, "handoff.json"),
+        ),
+      /requested project/,
+    );
+    writeFileSync(join(handoffDirectory, "handoff.json"), "{}");
+    assert.throws(
+      () =>
+        store.verifyHandoffPack(
+          "audit",
+          join(handoffDirectory, "handoff.json"),
+        ),
+      /pack SHA-256/,
+    );
+    const bundle = join(root, "bundle");
+    store.exportBundle(bundle);
+    const snapshot = store.compassSnapshot("audit");
+    store.close();
+
+    const imported = new WorkstreamStore(join(root, "imported"), fixedClock());
+    imported.importBundle(bundle);
+    assert.deepEqual(imported.compassSnapshot("audit"), snapshot);
+    assert.equal(imported.verify().valid, true);
+    imported.close();
+
+    writeFileSync(
+      join(bundle, "events.ndjson"),
+      `${readFileSync(join(bundle, "events.ndjson"), "utf8")}changed`,
+    );
+    const tampered = new WorkstreamStore(join(root, "tampered"), fixedClock());
+    assert.throws(() => tampered.importBundle(bundle), /manifest digest/);
+    tampered.close();
+  });
+});
+
+test("serves audit and a redacted Handoff Pack through the loopback API", async () => {
+  const root = mkdtempSync(join(tmpdir(), "workstream-m2c-server-"));
+  const server = createLocalServer(root);
+  try {
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected a loopback server address.");
+    }
+    assert.equal(address.address, "127.0.0.1");
+    const base = `http://127.0.0.1:${address.port}`;
+    const page = await fetch(base);
+    assert.match(await page.text(), /Decision Audit/);
+    assert.match(await (await fetch(base)).text(), /Handoff Pack/);
+    await post(base, "/api/initialize", { actor: "human:owner" });
+    await post(base, "/api/projects", {
+      actor: "human:owner",
+      description: "M2C browser test.",
+      id: "m2c",
+      name: "M2C",
+    });
+    const attached = await post(base, "/api/projects/m2c/evidence", {
+      actor: "human:owner",
+      content: "browser evidence must not enter the pack",
+      kind: "research",
+    });
+    const audit = await jsonObject(
+      await fetch(`${base}/api/projects/m2c/audit`),
+    );
+    assert.equal(Array.isArray(audit.findings), true);
+    const handoff = await jsonObject(
+      await fetch(`${base}/api/projects/m2c/handoff`),
+    );
+    const pack = requiredObject(handoff, "handoff");
+    assert.equal(typeof pack.packSha256, "string");
+    assert.equal(
+      JSON.stringify(pack).includes("browser evidence must not enter the pack"),
+      false,
+    );
+    assert.equal(
+      requiredText(requiredObject(attached, "evidence"), "sha256").length,
+      64,
+    );
+    assert.doesNotMatch(
+      readFileSync("src/server.ts", "utf8"),
+      /child_process|node:https|fetch\(|WebSocket|XMLHttpRequest/u,
+    );
+  } finally {
+    await closeServer(server);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
