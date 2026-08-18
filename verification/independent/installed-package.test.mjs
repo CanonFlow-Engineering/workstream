@@ -734,3 +734,276 @@ test("installed tarball records local Compass direction and denies Skeptic appro
     rmSync(installation.consumer, { force: true, recursive: true });
   }
 });
+
+test("installed tarball records bounded Shape, readiness, and outcome records without an external action", () => {
+  const installation = installCandidate();
+  try {
+    const root = join(installation.consumer, "m2b-state");
+    const source = join(installation.consumer, "m2b-source.md");
+    const ideaInput = join(installation.consumer, "m2b-idea.json");
+    const assumptionInput = join(installation.consumer, "m2b-assumption.json");
+    const shapeInput = join(installation.consumer, "m2b-shape.json");
+    const launchInput = join(installation.consumer, "m2b-launch.json");
+    const outcomeInput = join(installation.consumer, "m2b-outcome.json");
+    writeFileSync(
+      source,
+      "Human source evidence for one bounded local slice.\n",
+    );
+    cliJson(
+      installation,
+      ["init", root, "--actor", "human:owner"],
+      "initialize M2B state",
+    );
+    cliJson(
+      installation,
+      [
+        "project",
+        "create",
+        "m2b",
+        "M2B project",
+        "Independent public package M2B verification",
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "create M2B project",
+    );
+    const evidence = cliJson(
+      installation,
+      [
+        "compass",
+        "evidence",
+        "m2b",
+        "research",
+        source,
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "attach M2B evidence",
+    ).evidence.sha256;
+    writeFileSync(
+      ideaInput,
+      `${JSON.stringify({
+        problem: "A selected idea needs a bounded proposal.",
+        affectedUser: "Human project owner",
+        expectedResult: "A reviewable local Shape brief",
+        evidenceHash: evidence,
+        assumption: "A local proposal is sufficient for review.",
+        risk: "Scope expansion",
+        costEstimate: "One small slice",
+        rejectionReason: "Reject without source evidence",
+        expiresAt: "2026-12-31T00:00:00.000Z",
+      })}\n`,
+    );
+    cliJson(
+      installation,
+      [
+        "idea",
+        "create",
+        "m2b",
+        "idea-1",
+        ideaInput,
+        "--root",
+        root,
+        "--actor",
+        "skeptic-agent:critic",
+      ],
+      "create M2B idea",
+    );
+    cliJson(
+      installation,
+      [
+        "idea",
+        "review",
+        "idea-1",
+        "shaped",
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "select M2B idea",
+    );
+    writeFileSync(
+      assumptionInput,
+      `${JSON.stringify({
+        statement: "The owner will inspect local evidence.",
+        owner: "owner",
+        confidence: "medium",
+        testMethod: "Read the local Shape brief.",
+        expiresAt: "2026-12-31T00:00:00.000Z",
+      })}\n`,
+    );
+    cliJson(
+      installation,
+      [
+        "assumption",
+        "create",
+        "m2b",
+        "assumption-1",
+        assumptionInput,
+        "--root",
+        root,
+        "--actor",
+        "skeptic-agent:critic",
+      ],
+      "create M2B assumption",
+    );
+    writeFileSync(
+      shapeInput,
+      `${JSON.stringify({
+        ideaId: "idea-1",
+        owner: "owner",
+        userProblem: "An idea needs a bounded proposal.",
+        targetUser: "Human project owner",
+        desiredOutcome: "A local proposal can be inspected.",
+        evidenceHashes: [evidence],
+        assumptionIds: ["assumption-1"],
+        effortLimit: "One local slice",
+        solutionOutline: "Store evidence in the local ledger.",
+        userJourney: "Owner reads and approves the proposal.",
+        nonGoals: ["No remote action"],
+        risks: ["Scope expansion"],
+        openQuestions: ["Which result changes the next decision?"],
+        successCriteria: ["Owner can inspect the local proposal"],
+        scopeExpansionPaths: ["Remote synchronization"],
+        rabbitHoles: ["User accounts"],
+      })}\n`,
+    );
+    cliJson(
+      installation,
+      [
+        "shape",
+        "create",
+        "m2b",
+        "shape-1",
+        shapeInput,
+        "--root",
+        root,
+        "--actor",
+        "architect-agent:builder",
+      ],
+      "create Shape brief",
+    );
+    assertFailure(
+      cli(installation, [
+        "shape",
+        "approve",
+        "shape-1",
+        "--root",
+        root,
+        "--actor",
+        "skeptic-agent:critic",
+      ]),
+      "deny Skeptic Shape approval",
+    );
+    cliJson(
+      installation,
+      ["shape", "approve", "shape-1", "--root", root, "--actor", "human:owner"],
+      "approve Shape brief",
+    );
+    writeFileSync(
+      launchInput,
+      `${JSON.stringify({
+        shapeBriefId: "shape-1",
+        owner: "owner",
+        candidateEvidenceHash: evidence,
+        changeNote: "Describe the local user-facing change.",
+        knownLimits: ["No external action exists."],
+        supportOwner: "owner",
+        rollbackProcedure: "Stop the local milestone.",
+        verificationEvidenceHashes: [evidence],
+        privacySecurityDeclaration: "No data leaves the local machine.",
+        releaseChecklist: ["Human checks local evidence."],
+      })}\n`,
+    );
+    cliJson(
+      installation,
+      [
+        "launch",
+        "create",
+        "m2b",
+        "launch-1",
+        launchInput,
+        "--root",
+        root,
+        "--actor",
+        "architect-agent:builder",
+      ],
+      "create readiness record",
+    );
+    assertFailure(
+      cli(installation, [
+        "launch",
+        "authorize",
+        "launch-1",
+        "--root",
+        root,
+        "--actor",
+        "llm-judge:judge",
+      ]),
+      "deny non-human readiness authorization",
+    );
+    const authorized = cliJson(
+      installation,
+      [
+        "launch",
+        "authorize",
+        "launch-1",
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "record local readiness authorization",
+    );
+    assert.equal(authorized.launchReadiness.status, "authorized");
+    cliJson(
+      installation,
+      [
+        "outcome",
+        "create",
+        "m2b",
+        "outcome-1",
+        "shape-1",
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "create outcome template",
+    );
+    writeFileSync(
+      outcomeInput,
+      `${JSON.stringify({
+        observedResult: "Owner inspected the local proposal.",
+        changedAssumption: "No remote connection was necessary.",
+        decision: "keep",
+      })}\n`,
+    );
+    const recorded = cliJson(
+      installation,
+      [
+        "outcome",
+        "record",
+        "outcome-1",
+        outcomeInput,
+        "--root",
+        root,
+        "--actor",
+        "human:owner",
+      ],
+      "record outcome review",
+    );
+    assert.deepEqual(recorded.outcomeReview.expectedMeasure, [
+      "Owner can inspect the local proposal",
+    ]);
+    assert.equal(recorded.outcomeReview.decision, "keep");
+    assertSuccess(cli(installation, ["verify", root]), "verify M2B state");
+  } finally {
+    rmSync(installation.consumer, { force: true, recursive: true });
+  }
+});

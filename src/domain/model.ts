@@ -134,6 +134,98 @@ export interface MilestoneContract {
   readonly createdAt: string;
 }
 
+export type ShapeBriefStatus = "draft" | "approved";
+
+export interface ShapeBrief {
+  readonly id: string;
+  readonly projectId: string;
+  readonly ideaId: string;
+  readonly owner: string;
+  readonly userProblem: string;
+  readonly targetUser: string;
+  readonly desiredOutcome: string;
+  readonly evidenceHashes: readonly string[];
+  readonly assumptionIds: readonly string[];
+  readonly effortLimit: string;
+  readonly solutionOutline: string;
+  readonly userJourney: string;
+  readonly nonGoals: readonly string[];
+  readonly risks: readonly string[];
+  readonly openQuestions: readonly string[];
+  readonly successCriteria: readonly string[];
+  readonly scopeExpansionPaths: readonly string[];
+  readonly rabbitHoles: readonly string[];
+  readonly status: ShapeBriefStatus;
+  readonly createdAt: string;
+  readonly approvedAt: string | null;
+}
+
+export interface ShapeBriefInput {
+  readonly ideaId: string;
+  readonly owner: string;
+  readonly userProblem: string;
+  readonly targetUser: string;
+  readonly desiredOutcome: string;
+  readonly evidenceHashes: readonly string[];
+  readonly assumptionIds: readonly string[];
+  readonly effortLimit: string;
+  readonly solutionOutline: string;
+  readonly userJourney: string;
+  readonly nonGoals: readonly string[];
+  readonly risks: readonly string[];
+  readonly openQuestions: readonly string[];
+  readonly successCriteria: readonly string[];
+  readonly scopeExpansionPaths: readonly string[];
+  readonly rabbitHoles: readonly string[];
+}
+
+export type LaunchReadinessStatus = "draft" | "authorized";
+
+export interface LaunchReadiness {
+  readonly id: string;
+  readonly projectId: string;
+  readonly shapeBriefId: string;
+  readonly owner: string;
+  readonly candidateEvidenceHash: string;
+  readonly changeNote: string;
+  readonly knownLimits: readonly string[];
+  readonly supportOwner: string;
+  readonly rollbackProcedure: string;
+  readonly verificationEvidenceHashes: readonly string[];
+  readonly privacySecurityDeclaration: string;
+  readonly releaseChecklist: readonly string[];
+  readonly status: LaunchReadinessStatus;
+  readonly createdAt: string;
+  readonly authorizedAt: string | null;
+}
+
+export interface LaunchReadinessInput {
+  readonly shapeBriefId: string;
+  readonly owner: string;
+  readonly candidateEvidenceHash: string;
+  readonly changeNote: string;
+  readonly knownLimits: readonly string[];
+  readonly supportOwner: string;
+  readonly rollbackProcedure: string;
+  readonly verificationEvidenceHashes: readonly string[];
+  readonly privacySecurityDeclaration: string;
+  readonly releaseChecklist: readonly string[];
+}
+
+export type OutcomeDecision = "keep" | "change" | "stop" | null;
+
+export interface OutcomeReview {
+  readonly id: string;
+  readonly projectId: string;
+  readonly shapeBriefId: string;
+  readonly expectedMeasure: readonly string[];
+  readonly observedResult: string | null;
+  readonly changedAssumption: string | null;
+  readonly decision: OutcomeDecision;
+  readonly createdAt: string;
+  readonly recordedAt: string | null;
+}
+
 export interface CompassSnapshot {
   readonly compasses: readonly CompassVersion[];
   readonly ideas: readonly Idea[];
@@ -141,6 +233,9 @@ export interface CompassSnapshot {
   readonly tradeoffs: readonly TradeoffCard[];
   readonly decisions: readonly Decision[];
   readonly milestones: readonly MilestoneContract[];
+  readonly shapeBriefs: readonly ShapeBrief[];
+  readonly launchReadiness: readonly LaunchReadiness[];
+  readonly outcomeReviews: readonly OutcomeReview[];
 }
 
 export interface CompassDraftInput {

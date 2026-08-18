@@ -18,7 +18,7 @@ events and evidence. `import` accepts only an empty local store after it checks
 the manifest, file layout, event chain, and every artifact.
 
 The GitHub integration seam is a dry-run interface. It has no token input,
-network client, synchronization, or external write in M0 or M1.
+network client, synchronization, or external write in M0 through M2B.
 
 ## M1 local browser boundary
 
@@ -61,3 +61,24 @@ of truth.
 not parsed as authority. Import accepts only the generated projection form,
 stores the file as project evidence, and creates a new Compass draft whose
 statements reference that source evidence.
+
+## M2B Shape, readiness, and outcome projections
+
+M2B adds Shape briefs, launch-readiness records, and outcome reviews as local
+SQLite projections. `shape.created`, `shape.approved`,
+`launch-readiness.created`, `launch-readiness.authorized`,
+`outcome-review.created`, and `outcome-review.recorded` are append-only ledger
+events. Bundle import replays them only after it has verified the manifest,
+event chain, and evidence bytes.
+
+A Shape brief is linked to a human-selected idea, its evidence, and its stated
+assumptions. It stores explicit scope controls and a named human owner. A
+launch-readiness record is linked to an approved Shape brief and stores only
+local evidence and declarations. Its `authorized` projection is deliberately
+not connected to a remote adapter or command runner. Outcome review copies the
+Shape success criteria to an immutable expected-measure field before any result
+is recorded.
+
+The loopback browser uses fixed local API routes for the new records and the
+same domain checks as the CLI. It has no route that can execute a launch,
+command, deployment, publication, GitHub write, or remote synchronization.

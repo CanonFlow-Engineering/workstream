@@ -24,3 +24,10 @@ a new source-evidenced draft. It also tests idea expiry, assumption results,
 immutable decision supersession, milestone validation, and Skeptic denials for
 work claim, work evidence, test, Judge, and gate actions. Export/import must
 replay every Compass projection and reject any altered Compass evidence.
+
+For M2B, the tester uses only the installed CLI to create a human-selected idea,
+Shape brief, readiness record, and outcome review. It checks owner-only Shape
+approval, non-human readiness denial, required readiness fields, preservation
+of the original expected measure, and verified export/import replay. The tester
+must confirm that local readiness authorization reports only local ledger state
+and cannot initiate an external effect.

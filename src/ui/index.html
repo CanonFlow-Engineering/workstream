@@ -13,8 +13,8 @@
   <body>
     <header class="site-header">
       <div>
-        <p class="eyebrow">@canonflow/workstream · M1</p>
-        <h1>Local work board</h1>
+        <p class="eyebrow">@canonflow/workstream · M2B</p>
+        <h1>Local work and shaping board</h1>
         <p>
           A local browser view of the SQLite ledger. It does not synchronize
           with GitHub or perform external writes.
@@ -44,6 +44,9 @@
         Project
       </button>
       <button type="button" data-screen="compass">Compass</button>
+      <button type="button" data-screen="shape">Shape</button>
+      <button type="button" data-screen="launch">Launch Readiness</button>
+      <button type="button" data-screen="outcome">Outcome Review</button>
       <button type="button" data-screen="board">Work board</button>
       <button type="button" data-screen="evidence">Evidence and handoff</button>
       <button type="button" data-screen="approval">Human approval queue</button>
@@ -100,6 +103,174 @@
           <button type="submit">Create local project</button>
         </form>
         <div id="project-list" class="card-list" aria-live="polite"></div>
+        <aside
+          id="next-human-decision"
+          class="card next-decision"
+          aria-live="polite"
+        >
+          <h3>Next human decision</h3>
+          <p>
+            Load a local project to see pending Compass, Shape, or readiness
+            records.
+          </p>
+        </aside>
+      </section>
+
+      <section
+        id="shape-screen"
+        class="screen"
+        hidden
+        aria-labelledby="shape-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Small build proposal</p>
+            <h2 id="shape-heading">Shape</h2>
+          </div>
+        </div>
+        <p class="boundary">
+          A Shape brief turns a human-selected local idea into a bounded
+          proposal. The named human owner must approve it. Approval records
+          local intent only; it cannot create a remote action.
+        </p>
+        <div class="action-grid">
+          <form id="shape-form" class="card" novalidate>
+            <h3>Create Shape brief</h3>
+            <label
+              >Actor
+              <input name="actor" value="architect-agent:builder" required
+            /></label>
+            <label
+              >Project
+              <select name="projectId" class="project-choice" required></select
+            ></label>
+            <label
+              >Shape brief ID
+              <input
+                name="id"
+                placeholder="shape-m2b"
+                required
+                pattern="[a-z0-9-]+"
+            /></label>
+            <label
+              >Shape brief JSON
+              <textarea name="input" rows="16" required>
+{"ideaId":"idea-1","owner":"owner","userProblem":"Problem","targetUser":"User","desiredOutcome":"Measured outcome","evidenceHashes":["paste-evidence-hash"],"assumptionIds":["assumption-1"],"effortLimit":"One bounded slice","solutionOutline":"Local implementation","userJourney":"Human reviews a proposal","nonGoals":["No remote effects"],"risks":["Scope expansion"],"openQuestions":["What evidence matters?"],"successCriteria":["Human can inspect the proposal"],"scopeExpansionPaths":["Remote synchronization"],"rabbitHoles":["Accounts"]}</textarea
+              >
+            </label>
+            <button type="submit">Create local Shape draft</button>
+          </form>
+        </div>
+        <div id="shape-list" class="card-list" aria-live="polite"></div>
+      </section>
+
+      <section
+        id="launch-screen"
+        class="screen"
+        hidden
+        aria-labelledby="launch-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Prepared human decision</p>
+            <h2 id="launch-heading">Launch Readiness</h2>
+          </div>
+        </div>
+        <p class="boundary">
+          A launch-readiness record prepares a human decision with local
+          evidence. Authorization is recorded locally and never publishes,
+          releases, deploys, tags, or performs any external action.
+        </p>
+        <div class="action-grid">
+          <form id="launch-form" class="card" novalidate>
+            <h3>Create launch-readiness record</h3>
+            <label
+              >Actor
+              <input name="actor" value="architect-agent:builder" required
+            /></label>
+            <label
+              >Project
+              <select name="projectId" class="project-choice" required></select
+            ></label>
+            <label
+              >Readiness ID
+              <input
+                name="id"
+                placeholder="launch-m2b"
+                required
+                pattern="[a-z0-9-]+"
+            /></label>
+            <label
+              >Launch readiness JSON
+              <textarea name="input" rows="14" required>
+{"shapeBriefId":"shape-m2b","owner":"owner","candidateEvidenceHash":"paste-evidence-hash","changeNote":"Describe the user-facing change.","knownLimits":["Local only"],"supportOwner":"owner","rollbackProcedure":"Stop the local milestone.","verificationEvidenceHashes":["paste-evidence-hash"],"privacySecurityDeclaration":"No remote data or credentials.","releaseChecklist":["Human reviews local evidence."]}</textarea
+              >
+            </label>
+            <button type="submit">Create local readiness draft</button>
+          </form>
+        </div>
+        <div id="launch-list" class="card-list" aria-live="polite"></div>
+      </section>
+
+      <section
+        id="outcome-screen"
+        class="screen"
+        hidden
+        aria-labelledby="outcome-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Learning loop</p>
+            <h2 id="outcome-heading">Outcome Review</h2>
+          </div>
+        </div>
+        <p class="boundary">
+          Outcome Review retains the Shape brief’s original expected measure. A
+          human records what was observed and chooses keep, change, or stop.
+          This local record does not trigger a launch or other external effect.
+        </p>
+        <div class="action-grid">
+          <form id="outcome-create-form" class="card" novalidate>
+            <h3>Create outcome template</h3>
+            <label
+              >Human actor <input name="actor" value="human:owner" required
+            /></label>
+            <label
+              >Project
+              <select name="projectId" class="project-choice" required></select
+            ></label>
+            <label
+              >Outcome ID
+              <input
+                name="id"
+                placeholder="outcome-m2b"
+                required
+                pattern="[a-z0-9-]+"
+            /></label>
+            <label
+              >Shape brief ID
+              <input name="shapeBriefId" placeholder="shape-m2b" required
+            /></label>
+            <button type="submit">Create local outcome template</button>
+          </form>
+          <form id="outcome-record-form" class="card" novalidate>
+            <h3>Record outcome result</h3>
+            <label
+              >Human actor <input name="actor" value="human:owner" required
+            /></label>
+            <label
+              >Outcome ID <input name="id" placeholder="outcome-m2b" required
+            /></label>
+            <label
+              >Outcome review JSON
+              <textarea name="input" rows="6" required>
+{"observedResult":"Observed result","changedAssumption":"Changed assumption","decision":"keep"}</textarea
+              >
+            </label>
+            <button type="submit">Record local outcome</button>
+          </form>
+        </div>
+        <div id="outcome-list" class="card-list" aria-live="polite"></div>
       </section>
 
       <section
@@ -416,7 +587,7 @@
 
     <footer>
       <p>
-        Local-first M1. GitHub integration remains dry-run only. The browser
+        Local-first M2B. GitHub integration remains dry-run only. The browser
         never receives a credential, actor IDs are not authentication, and the
         server binds to <code>127.0.0.1</code>.
       </p>

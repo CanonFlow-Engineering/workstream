@@ -19,6 +19,12 @@ Usage:
 - Use `workstream tradeoff decide <trade-off-id> <accept|reject|defer> <reason> --actor human:<id>`.
 - Use `workstream decision record <project-id> <decision-id> <decision-json> --actor human:<id>`.
 - Use `workstream milestone create <project-id> <milestone-id> <milestone-json> --actor human:<id>`.
+- Use `workstream shape create <project-id> <shape-brief-id> <shape-brief-json> --actor <kind>:<id>`.
+- Use `workstream shape approve <shape-brief-id> --actor human:<owner-id>`.
+- Use `workstream launch create <project-id> <launch-readiness-id> <launch-readiness-json> --actor <kind>:<id>`.
+- Use `workstream launch authorize <launch-readiness-id> --actor human:<owner-id>`.
+- Use `workstream outcome create <project-id> <outcome-review-id> <shape-brief-id> --actor human:<id>`.
+- Use `workstream outcome record <outcome-review-id> <outcome-review-json> --actor human:<id>`.
 - Use `workstream work create <project-id> <work-id> <title> --actor human:<id>`.
 - Use `workstream mandate issue <work-id> <mandate-file> --actor human:<id>`.
 - Use `workstream work claim <work-id> --actor architect-agent:<id>`.
@@ -40,4 +46,12 @@ statement has `id`, `text`, and a project-linked `evidenceHash`. The generated
 `VISION.md` is a projection of an approved Compass; importing it creates a new
 draft linked to the imported file as local evidence.
 
-The CLI writes only local SQLite state and content-addressed evidence. The browser server binds to `127.0.0.1` only. Actor IDs are ledger labels, not authentication. The human gate is a trusted-local workflow control and does not authorize external actions. The Skeptic role can record local direction work but cannot build, test, Judge, or approve. GitHub output is dry-run only; M2A adds no two-way synchronization, credentials, command execution, or remote action capability.
+Shape JSON names a selected shaped idea, named human owner, project-linked
+evidence, assumption identifiers, bounded effort, solution and journey, and
+explicit non-goals, risks, questions, success criteria, scope-expansion paths,
+and rabbit holes. Launch-readiness JSON names an approved Shape brief, owner,
+candidate and verification evidence, change note, limits, support owner,
+rollback procedure, privacy and security declaration, and checklist. Outcome
+records preserve the Shape success criteria as their expected measure.
+
+The CLI writes only local SQLite state and content-addressed evidence. The browser server binds to `127.0.0.1` only. Actor IDs are ledger labels, not authentication. The human gate is a trusted-local workflow control and does not authorize external actions. The Skeptic role can record local direction work but cannot build, test, Judge, or approve a Compass, Shape, or launch-readiness record. GitHub output is dry-run only; M2B adds no two-way synchronization, credentials, command execution, or remote action capability. A local launch-readiness authorization never publishes, releases, deploys, tags, or writes to GitHub.

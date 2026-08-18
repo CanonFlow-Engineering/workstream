@@ -38,7 +38,15 @@ import type {
   LedgerEvent,
   MilestoneContract,
   MilestoneContractInput,
+  LaunchReadiness,
+  LaunchReadinessInput,
+  LaunchReadinessStatus,
+  OutcomeDecision,
+  OutcomeReview,
   Project,
+  ShapeBrief,
+  ShapeBriefInput,
+  ShapeBriefStatus,
   TestVerdict,
   TradeoffCard,
   TradeoffDecision,
@@ -168,6 +176,16 @@ const tradeoffDecisions: readonly Exclude<TradeoffDecision, null>[] = [
   "accept",
   "reject",
   "defer",
+];
+const shapeBriefStatuses: readonly ShapeBriefStatus[] = ["draft", "approved"];
+const launchReadinessStatuses: readonly LaunchReadinessStatus[] = [
+  "draft",
+  "authorized",
+];
+const outcomeDecisions: readonly Exclude<OutcomeDecision, null>[] = [
+  "keep",
+  "change",
+  "stop",
 ];
 
 const requiredEnum = <T extends string>(
@@ -1031,6 +1049,236 @@ export class WorkstreamStore {
     return this.requireMilestone(id);
   }
 
+  createShapeBrief(
+    actor: Actor,
+    id: string,
+    projectId: string,
+    input: ShapeBriefInput,
+  ): ShapeBrief {
+    this.requireProject(projectId);
+    this.requireIdentifier(id, "Shape brief id");
+    this.requireShapeBriefInput(projectId, input);
+    const createdAt = this.clock();
+    this.transaction(() => {
+      this.append(actor, "shape.created", {
+        ...input,
+        createdAt,
+        id,
+        projectId,
+      });
+      this.database
+        .prepare(
+          "INSERT INTO shape_briefs (id, project_id, idea_id, owner, user_problem, target_user, desired_outcome, evidence_hashes_json, assumption_ids_json, effort_limit, solution_outline, user_journey, non_goals_json, risks_json, open_questions_json, success_criteria_json, scope_expansion_paths_json, rabbit_holes_json, status, created_at, approved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+        )
+        .run(
+          id,
+          projectId,
+          input.ideaId,
+          input.owner,
+          input.userProblem,
+          input.targetUser,
+          input.desiredOutcome,
+          canonicalJson(input.evidenceHashes),
+          canonicalJson(input.assumptionIds),
+          input.effortLimit,
+          input.solutionOutline,
+          input.userJourney,
+          canonicalJson(input.nonGoals),
+          canonicalJson(input.risks),
+          canonicalJson(input.openQuestions),
+          canonicalJson(input.successCriteria),
+          canonicalJson(input.scopeExpansionPaths),
+          canonicalJson(input.rabbitHoles),
+          "draft",
+          createdAt,
+        );
+    });
+    return this.requireShapeBrief(id);
+  }
+
+  approveShapeBrief(actor: Actor, shapeBriefId: string): ShapeBrief {
+    const shape = this.requireShapeBrief(shapeBriefId);
+    const permission = requireHuman(actor, "Shape brief approval");
+    if (permission.kind === "error") {
+      throw new Error(permission.message);
+    }
+    if (actor.id !== shape.owner) {
+      throw new Error("Shape brief approval requires its named human owner.");
+    }
+    if (shape.status !== "draft") {
+      throw new Error("Only a Shape brief draft can be approved.");
+    }
+    const approvedAt = this.clock();
+    this.transaction(() => {
+      this.append(actor, "shape.approved", { approvedAt, shapeBriefId });
+      this.database
+        .prepare(
+          "UPDATE shape_briefs SET status = ?, approved_at = ? WHERE id = ?",
+        )
+        .run("approved", approvedAt, shapeBriefId);
+    });
+    return this.requireShapeBrief(shapeBriefId);
+  }
+
+  createLaunchReadiness(
+    actor: Actor,
+    id: string,
+    projectId: string,
+    input: LaunchReadinessInput,
+  ): LaunchReadiness {
+    this.requireProject(projectId);
+    this.requireIdentifier(id, "Launch readiness id");
+    this.requireLaunchReadinessInput(projectId, input);
+    const createdAt = this.clock();
+    this.transaction(() => {
+      this.append(actor, "launch-readiness.created", {
+        ...input,
+        createdAt,
+        id,
+        projectId,
+      });
+      this.database
+        .prepare(
+          "INSERT INTO launch_readiness (id, project_id, shape_brief_id, owner, candidate_evidence_hash, change_note, known_limits_json, support_owner, rollback_procedure, verification_evidence_hashes_json, privacy_security_declaration, release_checklist_json, status, created_at, authorized_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+        )
+        .run(
+          id,
+          projectId,
+          input.shapeBriefId,
+          input.owner,
+          input.candidateEvidenceHash,
+          input.changeNote,
+          canonicalJson(input.knownLimits),
+          input.supportOwner,
+          input.rollbackProcedure,
+          canonicalJson(input.verificationEvidenceHashes),
+          input.privacySecurityDeclaration,
+          canonicalJson(input.releaseChecklist),
+          "draft",
+          createdAt,
+        );
+    });
+    return this.requireLaunchReadiness(id);
+  }
+
+  authorizeLaunchReadiness(
+    actor: Actor,
+    launchReadinessId: string,
+  ): LaunchReadiness {
+    const readiness = this.requireLaunchReadiness(launchReadinessId);
+    const permission = requireHuman(actor, "Launch readiness authorization");
+    if (permission.kind === "error") {
+      throw new Error(permission.message);
+    }
+    if (actor.id !== readiness.owner) {
+      throw new Error(
+        "Launch readiness authorization requires its named human owner.",
+      );
+    }
+    if (readiness.status !== "draft") {
+      throw new Error(
+        "Only a draft launch-readiness record can be authorized.",
+      );
+    }
+    const authorizedAt = this.clock();
+    this.transaction(() => {
+      this.append(actor, "launch-readiness.authorized", {
+        authorizedAt,
+        launchReadinessId,
+      });
+      this.database
+        .prepare(
+          "UPDATE launch_readiness SET status = ?, authorized_at = ? WHERE id = ?",
+        )
+        .run("authorized", authorizedAt, launchReadinessId);
+    });
+    return this.requireLaunchReadiness(launchReadinessId);
+  }
+
+  createOutcomeReview(
+    actor: Actor,
+    id: string,
+    projectId: string,
+    shapeBriefId: string,
+  ): OutcomeReview {
+    const permission = requireHuman(actor, "Outcome review creation");
+    if (permission.kind === "error") {
+      throw new Error(permission.message);
+    }
+    this.requireProject(projectId);
+    this.requireIdentifier(id, "Outcome review id");
+    const shape = this.requireShapeBrief(shapeBriefId);
+    if (shape.projectId !== projectId) {
+      throw new Error("Outcome review Shape brief belongs to another project.");
+    }
+    const createdAt = this.clock();
+    this.transaction(() => {
+      this.append(actor, "outcome-review.created", {
+        createdAt,
+        expectedMeasure: shape.successCriteria,
+        id,
+        projectId,
+        shapeBriefId,
+      });
+      this.database
+        .prepare(
+          "INSERT INTO outcome_reviews (id, project_id, shape_brief_id, expected_measure_json, observed_result, changed_assumption, decision, created_at, recorded_at) VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, NULL)",
+        )
+        .run(
+          id,
+          projectId,
+          shapeBriefId,
+          canonicalJson(shape.successCriteria),
+          createdAt,
+        );
+    });
+    return this.requireOutcomeReview(id);
+  }
+
+  recordOutcomeReview(
+    actor: Actor,
+    outcomeReviewId: string,
+    observedResult: string,
+    changedAssumption: string,
+    decision: Exclude<OutcomeDecision, null>,
+  ): OutcomeReview {
+    const permission = requireHuman(actor, "Outcome review recording");
+    if (permission.kind === "error") {
+      throw new Error(permission.message);
+    }
+    this.requireText(observedResult, "Observed result");
+    this.requireText(changedAssumption, "Changed assumption");
+    if (!outcomeDecisions.some((value) => value === decision)) {
+      throw new Error("Outcome review decision is invalid.");
+    }
+    const review = this.requireOutcomeReview(outcomeReviewId);
+    if (review.recordedAt !== null) {
+      throw new Error("An outcome review result is immutable.");
+    }
+    const recordedAt = this.clock();
+    this.transaction(() => {
+      this.append(actor, "outcome-review.recorded", {
+        changedAssumption,
+        decision,
+        observedResult,
+        outcomeReviewId,
+        recordedAt,
+      });
+      this.database
+        .prepare(
+          "UPDATE outcome_reviews SET observed_result = ?, changed_assumption = ?, decision = ?, recorded_at = ? WHERE id = ?",
+        )
+        .run(
+          observedResult,
+          changedAssumption,
+          decision,
+          recordedAt,
+          outcomeReviewId,
+        );
+    });
+    return this.requireOutcomeReview(outcomeReviewId);
+  }
+
   project(id: string): Project | null {
     const row = this.database
       .prepare(
@@ -1241,13 +1489,64 @@ export class WorkstreamStore {
     }));
   }
 
+  shapeBriefs(projectId?: string): readonly ShapeBrief[] {
+    const rows =
+      projectId === undefined
+        ? this.database
+            .prepare(
+              "SELECT id, project_id, idea_id, owner, user_problem, target_user, desired_outcome, evidence_hashes_json, assumption_ids_json, effort_limit, solution_outline, user_journey, non_goals_json, risks_json, open_questions_json, success_criteria_json, scope_expansion_paths_json, rabbit_holes_json, status, created_at, approved_at FROM shape_briefs ORDER BY created_at, id",
+            )
+            .all()
+        : this.database
+            .prepare(
+              "SELECT id, project_id, idea_id, owner, user_problem, target_user, desired_outcome, evidence_hashes_json, assumption_ids_json, effort_limit, solution_outline, user_journey, non_goals_json, risks_json, open_questions_json, success_criteria_json, scope_expansion_paths_json, rabbit_holes_json, status, created_at, approved_at FROM shape_briefs WHERE project_id = ? ORDER BY created_at, id",
+            )
+            .all(projectId);
+    return rows.map((row) => this.shapeBriefFromRow(row));
+  }
+
+  launchReadinessRecords(projectId?: string): readonly LaunchReadiness[] {
+    const rows =
+      projectId === undefined
+        ? this.database
+            .prepare(
+              "SELECT id, project_id, shape_brief_id, owner, candidate_evidence_hash, change_note, known_limits_json, support_owner, rollback_procedure, verification_evidence_hashes_json, privacy_security_declaration, release_checklist_json, status, created_at, authorized_at FROM launch_readiness ORDER BY created_at, id",
+            )
+            .all()
+        : this.database
+            .prepare(
+              "SELECT id, project_id, shape_brief_id, owner, candidate_evidence_hash, change_note, known_limits_json, support_owner, rollback_procedure, verification_evidence_hashes_json, privacy_security_declaration, release_checklist_json, status, created_at, authorized_at FROM launch_readiness WHERE project_id = ? ORDER BY created_at, id",
+            )
+            .all(projectId);
+    return rows.map((row) => this.launchReadinessFromRow(row));
+  }
+
+  outcomeReviews(projectId?: string): readonly OutcomeReview[] {
+    const rows =
+      projectId === undefined
+        ? this.database
+            .prepare(
+              "SELECT id, project_id, shape_brief_id, expected_measure_json, observed_result, changed_assumption, decision, created_at, recorded_at FROM outcome_reviews ORDER BY created_at, id",
+            )
+            .all()
+        : this.database
+            .prepare(
+              "SELECT id, project_id, shape_brief_id, expected_measure_json, observed_result, changed_assumption, decision, created_at, recorded_at FROM outcome_reviews WHERE project_id = ? ORDER BY created_at, id",
+            )
+            .all(projectId);
+    return rows.map((row) => this.outcomeReviewFromRow(row));
+  }
+
   compassSnapshot(projectId?: string): CompassSnapshot {
     return {
       assumptions: this.assumptions(projectId),
       compasses: this.compasses(projectId),
       decisions: this.decisions(projectId),
       ideas: this.ideas(projectId),
+      launchReadiness: this.launchReadinessRecords(projectId),
       milestones: this.milestones(projectId),
+      outcomeReviews: this.outcomeReviews(projectId),
+      shapeBriefs: this.shapeBriefs(projectId),
       tradeoffs: this.tradeoffs(projectId),
     };
   }
@@ -1637,6 +1936,125 @@ export class WorkstreamStore {
     return milestone;
   }
 
+  private shapeBriefFromRow(row: SqlRow): ShapeBrief {
+    return {
+      id: stringValue(row, "id"),
+      projectId: stringValue(row, "project_id"),
+      ideaId: stringValue(row, "idea_id"),
+      owner: stringValue(row, "owner"),
+      userProblem: stringValue(row, "user_problem"),
+      targetUser: stringValue(row, "target_user"),
+      desiredOutcome: stringValue(row, "desired_outcome"),
+      evidenceHashes: this.parseStringList(
+        stringValue(row, "evidence_hashes_json"),
+      ),
+      assumptionIds: this.parseStringList(
+        stringValue(row, "assumption_ids_json"),
+      ),
+      effortLimit: stringValue(row, "effort_limit"),
+      solutionOutline: stringValue(row, "solution_outline"),
+      userJourney: stringValue(row, "user_journey"),
+      nonGoals: this.parseStringList(stringValue(row, "non_goals_json")),
+      risks: this.parseStringList(stringValue(row, "risks_json")),
+      openQuestions: this.parseStringList(
+        stringValue(row, "open_questions_json"),
+      ),
+      successCriteria: this.parseStringList(
+        stringValue(row, "success_criteria_json"),
+      ),
+      scopeExpansionPaths: this.parseStringList(
+        stringValue(row, "scope_expansion_paths_json"),
+      ),
+      rabbitHoles: this.parseStringList(stringValue(row, "rabbit_holes_json")),
+      status: requiredEnum(
+        stringValue(row, "status"),
+        shapeBriefStatuses,
+        "Shape brief status",
+      ),
+      createdAt: stringValue(row, "created_at"),
+      approvedAt: nullableStringValue(row, "approved_at"),
+    };
+  }
+
+  private requireShapeBrief(id: string): ShapeBrief {
+    const shape = this.shapeBriefs().find((candidate) => candidate.id === id);
+    if (shape === undefined) {
+      throw new Error(`Shape brief ${id} does not exist.`);
+    }
+    return shape;
+  }
+
+  private launchReadinessFromRow(row: SqlRow): LaunchReadiness {
+    return {
+      id: stringValue(row, "id"),
+      projectId: stringValue(row, "project_id"),
+      shapeBriefId: stringValue(row, "shape_brief_id"),
+      owner: stringValue(row, "owner"),
+      candidateEvidenceHash: stringValue(row, "candidate_evidence_hash"),
+      changeNote: stringValue(row, "change_note"),
+      knownLimits: this.parseStringList(stringValue(row, "known_limits_json")),
+      supportOwner: stringValue(row, "support_owner"),
+      rollbackProcedure: stringValue(row, "rollback_procedure"),
+      verificationEvidenceHashes: this.parseStringList(
+        stringValue(row, "verification_evidence_hashes_json"),
+      ),
+      privacySecurityDeclaration: stringValue(
+        row,
+        "privacy_security_declaration",
+      ),
+      releaseChecklist: this.parseStringList(
+        stringValue(row, "release_checklist_json"),
+      ),
+      status: requiredEnum(
+        stringValue(row, "status"),
+        launchReadinessStatuses,
+        "Launch readiness status",
+      ),
+      createdAt: stringValue(row, "created_at"),
+      authorizedAt: nullableStringValue(row, "authorized_at"),
+    };
+  }
+
+  private requireLaunchReadiness(id: string): LaunchReadiness {
+    const readiness = this.launchReadinessRecords().find(
+      (candidate) => candidate.id === id,
+    );
+    if (readiness === undefined) {
+      throw new Error(`Launch readiness ${id} does not exist.`);
+    }
+    return readiness;
+  }
+
+  private outcomeReviewFromRow(row: SqlRow): OutcomeReview {
+    const decision = nullableStringValue(row, "decision");
+    return {
+      id: stringValue(row, "id"),
+      projectId: stringValue(row, "project_id"),
+      shapeBriefId: stringValue(row, "shape_brief_id"),
+      expectedMeasure: this.parseStringList(
+        stringValue(row, "expected_measure_json"),
+      ),
+      observedResult: nullableStringValue(row, "observed_result"),
+      changedAssumption: nullableStringValue(row, "changed_assumption"),
+      decision:
+        decision === null
+          ? null
+          : requiredEnum(decision, outcomeDecisions, "Outcome review decision"),
+      createdAt: stringValue(row, "created_at"),
+      recordedAt: nullableStringValue(row, "recorded_at"),
+    };
+  }
+
+  private requireOutcomeReview(id: string): OutcomeReview {
+    const review = this.outcomeReviews().find(
+      (candidate) => candidate.id === id,
+    );
+    if (review === undefined) {
+      throw new Error(`Outcome review ${id} does not exist.`);
+    }
+    return review;
+  }
+
   private nextCompassVersion(projectId: string): number {
     const row = this.database
       .prepare(
@@ -1745,6 +2163,102 @@ export class WorkstreamStore {
       for (const value of values) {
         this.requireText(value, label);
       }
+    }
+  }
+
+  private requireShapeBriefInput(
+    projectId: string,
+    input: ShapeBriefInput,
+  ): void {
+    this.requireIdentifier(input.ideaId, "Selected idea id");
+    const idea = this.requireIdea(input.ideaId);
+    if (idea.projectId !== projectId || idea.status !== "shaped") {
+      throw new Error("Shape brief requires a human-selected project idea.");
+    }
+    this.requireText(input.owner, "Shape brief owner");
+    const textFields = new Map<string, string>([
+      ["Shape brief user problem", input.userProblem],
+      ["Shape brief target user", input.targetUser],
+      ["Shape brief desired outcome", input.desiredOutcome],
+      ["Shape brief effort limit", input.effortLimit],
+      ["Shape brief solution outline", input.solutionOutline],
+      ["Shape brief user journey", input.userJourney],
+    ]);
+    for (const [label, value] of textFields) {
+      this.requireText(value, label);
+    }
+    this.requireTextList(input.evidenceHashes, "Shape brief evidence links");
+    for (const hash of input.evidenceHashes) {
+      this.requireProjectEvidence(projectId, hash);
+    }
+    this.requireTextList(input.assumptionIds, "Shape brief assumptions");
+    for (const assumptionId of input.assumptionIds) {
+      const assumption = this.requireAssumption(assumptionId);
+      if (assumption.projectId !== projectId) {
+        throw new Error("Shape brief assumption belongs to another project.");
+      }
+    }
+    const lists = new Map<string, readonly string[]>([
+      ["Shape brief non-goals", input.nonGoals],
+      ["Shape brief risks", input.risks],
+      ["Shape brief open questions", input.openQuestions],
+      ["Shape brief success criteria", input.successCriteria],
+      ["Shape brief scope-expansion paths", input.scopeExpansionPaths],
+      ["Shape brief rabbit holes", input.rabbitHoles],
+    ]);
+    for (const [label, values] of lists) {
+      this.requireTextList(values, label);
+    }
+  }
+
+  private requireLaunchReadinessInput(
+    projectId: string,
+    input: LaunchReadinessInput,
+  ): void {
+    this.requireIdentifier(
+      input.shapeBriefId,
+      "Launch readiness Shape brief id",
+    );
+    const shape = this.requireShapeBrief(input.shapeBriefId);
+    if (shape.projectId !== projectId || shape.status !== "approved") {
+      throw new Error(
+        "Launch readiness requires an approved project Shape brief.",
+      );
+    }
+    this.requireText(input.owner, "Launch readiness owner");
+    this.requireProjectEvidence(projectId, input.candidateEvidenceHash);
+    const textFields = new Map<string, string>([
+      ["Launch readiness change note", input.changeNote],
+      ["Launch readiness support owner", input.supportOwner],
+      ["Launch readiness rollback procedure", input.rollbackProcedure],
+      [
+        "Launch readiness privacy and security declaration",
+        input.privacySecurityDeclaration,
+      ],
+    ]);
+    for (const [label, value] of textFields) {
+      this.requireText(value, label);
+    }
+    this.requireTextList(input.knownLimits, "Launch readiness known limits");
+    this.requireTextList(
+      input.verificationEvidenceHashes,
+      "Launch readiness verification evidence",
+    );
+    for (const hash of input.verificationEvidenceHashes) {
+      this.requireProjectEvidence(projectId, hash);
+    }
+    this.requireTextList(
+      input.releaseChecklist,
+      "Launch readiness release checklist",
+    );
+  }
+
+  private requireTextList(values: readonly string[], label: string): void {
+    if (values.length === 0) {
+      throw new Error(`${label} must not be empty.`);
+    }
+    for (const value of values) {
+      this.requireText(value, label);
     }
   }
 
@@ -1965,6 +2479,57 @@ export class WorkstreamStore {
         rollback_condition TEXT NOT NULL,
         human_gate TEXT NOT NULL,
         created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS shape_briefs (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id),
+        idea_id TEXT NOT NULL REFERENCES ideas(id),
+        owner TEXT NOT NULL,
+        user_problem TEXT NOT NULL,
+        target_user TEXT NOT NULL,
+        desired_outcome TEXT NOT NULL,
+        evidence_hashes_json TEXT NOT NULL,
+        assumption_ids_json TEXT NOT NULL,
+        effort_limit TEXT NOT NULL,
+        solution_outline TEXT NOT NULL,
+        user_journey TEXT NOT NULL,
+        non_goals_json TEXT NOT NULL,
+        risks_json TEXT NOT NULL,
+        open_questions_json TEXT NOT NULL,
+        success_criteria_json TEXT NOT NULL,
+        scope_expansion_paths_json TEXT NOT NULL,
+        rabbit_holes_json TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        approved_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS launch_readiness (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id),
+        shape_brief_id TEXT NOT NULL REFERENCES shape_briefs(id),
+        owner TEXT NOT NULL,
+        candidate_evidence_hash TEXT NOT NULL REFERENCES evidence(sha256),
+        change_note TEXT NOT NULL,
+        known_limits_json TEXT NOT NULL,
+        support_owner TEXT NOT NULL,
+        rollback_procedure TEXT NOT NULL,
+        verification_evidence_hashes_json TEXT NOT NULL,
+        privacy_security_declaration TEXT NOT NULL,
+        release_checklist_json TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        authorized_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS outcome_reviews (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id),
+        shape_brief_id TEXT NOT NULL REFERENCES shape_briefs(id),
+        expected_measure_json TEXT NOT NULL,
+        observed_result TEXT,
+        changed_assumption TEXT,
+        decision TEXT,
+        created_at TEXT NOT NULL,
+        recorded_at TEXT
       );
     `);
   }
@@ -2505,6 +3070,118 @@ export class WorkstreamStore {
           requireText(payload, "rollbackCondition"),
           requireText(payload, "humanGate"),
           requireText(payload, "createdAt"),
+        );
+      return;
+    }
+    if (event.type === "shape.created") {
+      this.database
+        .prepare(
+          "INSERT INTO shape_briefs (id, project_id, idea_id, owner, user_problem, target_user, desired_outcome, evidence_hashes_json, assumption_ids_json, effort_limit, solution_outline, user_journey, non_goals_json, risks_json, open_questions_json, success_criteria_json, scope_expansion_paths_json, rabbit_holes_json, status, created_at, approved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+        )
+        .run(
+          requireText(payload, "id"),
+          requireText(payload, "projectId"),
+          requireText(payload, "ideaId"),
+          requireText(payload, "owner"),
+          requireText(payload, "userProblem"),
+          requireText(payload, "targetUser"),
+          requireText(payload, "desiredOutcome"),
+          canonicalJson(this.requireStringPayload(payload, "evidenceHashes")),
+          canonicalJson(this.requireStringPayload(payload, "assumptionIds")),
+          requireText(payload, "effortLimit"),
+          requireText(payload, "solutionOutline"),
+          requireText(payload, "userJourney"),
+          canonicalJson(this.requireStringPayload(payload, "nonGoals")),
+          canonicalJson(this.requireStringPayload(payload, "risks")),
+          canonicalJson(this.requireStringPayload(payload, "openQuestions")),
+          canonicalJson(this.requireStringPayload(payload, "successCriteria")),
+          canonicalJson(
+            this.requireStringPayload(payload, "scopeExpansionPaths"),
+          ),
+          canonicalJson(this.requireStringPayload(payload, "rabbitHoles")),
+          "draft",
+          requireText(payload, "createdAt"),
+        );
+      return;
+    }
+    if (event.type === "shape.approved") {
+      this.database
+        .prepare(
+          "UPDATE shape_briefs SET status = ?, approved_at = ? WHERE id = ?",
+        )
+        .run(
+          "approved",
+          requireText(payload, "approvedAt"),
+          requireText(payload, "shapeBriefId"),
+        );
+      return;
+    }
+    if (event.type === "launch-readiness.created") {
+      this.database
+        .prepare(
+          "INSERT INTO launch_readiness (id, project_id, shape_brief_id, owner, candidate_evidence_hash, change_note, known_limits_json, support_owner, rollback_procedure, verification_evidence_hashes_json, privacy_security_declaration, release_checklist_json, status, created_at, authorized_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+        )
+        .run(
+          requireText(payload, "id"),
+          requireText(payload, "projectId"),
+          requireText(payload, "shapeBriefId"),
+          requireText(payload, "owner"),
+          requireText(payload, "candidateEvidenceHash"),
+          requireText(payload, "changeNote"),
+          canonicalJson(this.requireStringPayload(payload, "knownLimits")),
+          requireText(payload, "supportOwner"),
+          requireText(payload, "rollbackProcedure"),
+          canonicalJson(
+            this.requireStringPayload(payload, "verificationEvidenceHashes"),
+          ),
+          requireText(payload, "privacySecurityDeclaration"),
+          canonicalJson(this.requireStringPayload(payload, "releaseChecklist")),
+          "draft",
+          requireText(payload, "createdAt"),
+        );
+      return;
+    }
+    if (event.type === "launch-readiness.authorized") {
+      this.database
+        .prepare(
+          "UPDATE launch_readiness SET status = ?, authorized_at = ? WHERE id = ?",
+        )
+        .run(
+          "authorized",
+          requireText(payload, "authorizedAt"),
+          requireText(payload, "launchReadinessId"),
+        );
+      return;
+    }
+    if (event.type === "outcome-review.created") {
+      this.database
+        .prepare(
+          "INSERT INTO outcome_reviews (id, project_id, shape_brief_id, expected_measure_json, observed_result, changed_assumption, decision, created_at, recorded_at) VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, NULL)",
+        )
+        .run(
+          requireText(payload, "id"),
+          requireText(payload, "projectId"),
+          requireText(payload, "shapeBriefId"),
+          canonicalJson(this.requireStringPayload(payload, "expectedMeasure")),
+          requireText(payload, "createdAt"),
+        );
+      return;
+    }
+    if (event.type === "outcome-review.recorded") {
+      const decision = requireText(payload, "decision");
+      if (!outcomeDecisions.some((value) => value === decision)) {
+        throw new Error("Bundle outcome review decision is unknown.");
+      }
+      this.database
+        .prepare(
+          "UPDATE outcome_reviews SET observed_result = ?, changed_assumption = ?, decision = ?, recorded_at = ? WHERE id = ?",
+        )
+        .run(
+          requireText(payload, "observedResult"),
+          requireText(payload, "changedAssumption"),
+          decision,
+          requireText(payload, "recordedAt"),
+          requireText(payload, "outcomeReviewId"),
         );
       return;
     }

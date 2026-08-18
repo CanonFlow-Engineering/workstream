@@ -45,3 +45,6 @@ synchronization, credential input, command execution, account system,
 publication, release, deployment, or hosted service. A human gate event is a
 local workflow record only; it does not authorize a merge, publication, release,
 deployment, GitHub write, or any other external action.
+
+M2B builds on a human-selected idea with a separate local Shape brief and
+launch-readiness record. See [Shape and Launch Readiness](shaping-launch-readiness.md).

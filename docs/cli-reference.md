@@ -34,6 +34,22 @@ remote service or execute a command. `skeptic-agent:<id>` is accepted as a
 local actor label but is denied work claims, test recording, Judge recording,
 and gate decisions.
 
+## Shape, readiness, and outcome commands
+
+Use `shape create` with an explicit JSON record after a human has marked its
+selected idea `shaped`. Only the Shape brief's named human owner can use
+`shape approve`. The record must include its evidence links, stated
+assumptions, scope controls, and measurable success criteria.
+
+Use `launch create` to prepare a local readiness record for an approved Shape
+brief. `launch authorize` records the named human owner's local workflow
+authorization. It does not execute a launch, run a command, write to GitHub,
+or create a remote effect.
+
+Use `outcome create` to copy a Shape brief's success criteria into an immutable
+expected measure. A human uses `outcome record` to record an observed result,
+changed assumption, and `keep`, `change`, or `stop` decision.
+
 ## Local browser command
 
 Use `serve [path] [--port 3210]` to start the M1 browser interface. It binds
